@@ -8,6 +8,24 @@
 - 打包产物包含运行时Core、产品SQL、维护CLI与安装说明，不需要原Nobei checkout。
 - 默认路径隔离检查使用仓库内空 sentinel，不访问旧正式数据库。
 
+## 当前全量验证结果
+
+下表为最近一次在本仓库 `main` 上完整执行的结果，命令可直接复制运行：
+
+```sh
+CI=true corepack pnpm@11.23.0 install --frozen-lockfile
+corepack pnpm@11.23.0 test                      # TypeScript
+corepack pnpm@11.23.0 test:phase1b-python       # Python
+```
+
+| 套件 | 结果 | 覆盖范围 |
+| --- | --- | --- |
+| TypeScript（Vitest） | 68 个测试文件、790/790 项通过 | 路由、生命周期、模型快照、生成边界、客户端交互与验收器 |
+| Python（pytest） | 393/393 项通过 | 数据库所有权、状态机、证据定位、幂等审核、恢复与 JSON-RPC |
+
+本文档中按日期命名的章节（例如“DSH 历史对话提取（2026-09-01）”）是当时那次验收的历史快照，
+其中的用例数量反映的是那一刻的工作树，后续提交新增用例后不再回填。**当前数值以本节为准。**
+
 ## 开发环境准备与首次运行
 
 首次 checkout 或拉取依赖声明有变化的提交后，先同步依赖，再执行所需验证：
