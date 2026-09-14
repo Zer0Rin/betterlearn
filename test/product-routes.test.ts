@@ -208,12 +208,24 @@ describe('product route table', () => {
     const { port, dispose } = await listen('READY', ops)
     const response = await fetch(`http://127.0.0.1:${port}/nobei/v1/runs/${runId}/stream`, { headers: { origin: `http://127.0.0.1:${port}` } })
     const reader = response.body!.getReader()
+    const decoder = new TextDecoder()
+    let seen = ''
+    // 初始 hint 与当前进度是两次独立的 res.write，是否落进同一个 chunk 取决于
+    // TCP/undici 的合并时机，不是协议契约。按事件边界累积，不假设 chunk 边界。
+    const readUntil = async (needle: string) => {
+      while (!seen.includes(needle)) {
+        const { value, done } = await reader.read()
+        if (done) throw new Error(`stream closed before ${needle}`)
+        seen += decoder.decode(value, { stream: true })
+      }
+    }
     try {
-      const first = new TextDecoder().decode((await reader.read()).value)
-      expect(first).toContain('event: run.changed')
-      expect(first).toContain(`event: run.progress\ndata: ${JSON.stringify(p)}`)
+      await readUntil('event: run.changed\ndata: {}\n\n')
+      await readUntil(`event: run.progress\ndata: ${JSON.stringify(p)}`)
+      expect(seen).toContain('event: run.changed\ndata: {}\n\n')
+      expect(seen).toContain(`event: run.progress\ndata: ${JSON.stringify(p)}`)
       notify({ ...p, lastResponseAt: 3 })
-      expect(new TextDecoder().decode((await reader.read()).value)).toContain('"lastResponseAt":3')
+      await readUntil('"lastResponseAt":3')
       expect(ops.getRun).not.toHaveBeenCalled()
       expect((await send(port, { method: 'GET', path: `/nobei/v1/runs/${runId}/progress` })).body.result).toEqual(p)
     } finally { await reader.cancel(); dispose() }
