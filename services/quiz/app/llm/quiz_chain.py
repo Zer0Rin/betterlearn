@@ -55,7 +55,7 @@ async def generate_quiz(
     )
 
     content = result.content
-    logger.debug("llm_quiz_raw_response", content_length=len(content), content_preview=content[:200] if content else "<empty>")
+    logger.debug("llm_quiz_raw_response", content_length=len(content))
 
     if not content:
         raise ValueError("LLM 返回内容为空")

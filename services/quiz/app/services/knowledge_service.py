@@ -77,7 +77,7 @@ async def _process_document(doc_id: str, user_id: int, file_path: str, file_type
 
         chunks = await asyncio.to_thread(document_loader_service.load_and_split, file_path, file_type)
         if not chunks:
-            raise ValueError("文档解析后未提取到任何内容")
+            raise KnowledgeBaseError("文档解析后未提取到任何内容")
 
         chunk_count = await asyncio.to_thread(vector_store_service.add_document_chunks, user_id, doc_id, chunks)
 
@@ -88,8 +88,8 @@ async def _process_document(doc_id: str, user_id: int, file_path: str, file_type
             "kb_document_processing_completed", doc_id=doc_id, user_id=user_id, chunk_count=chunk_count
         )
     except Exception as e:
-        logger.error("kb_document_processing_failed", doc_id=doc_id, user_id=user_id, error=str(e))
-        message = str(e)[:500]
+        logger.error("kb_document_processing_failed", doc_id=doc_id, user_id=user_id, error_type=type(e).__name__)
+        message = str(e) if isinstance(e, KnowledgeBaseError) else "文档处理失败，请检查文档格式、向量模型配置和本地存储后重试"
         if getattr(e, "status_code", None) == 401:
             message = "向量模型授权失败（401）。请检查 quiz.env 中的 DASHSCOPE_API_KEY 与 DASHSCOPE_BASE_URL，重启 BetterLearn后重新上传文档。"
         await knowledge_repository.update_document_status(
@@ -137,8 +137,8 @@ async def get_document_content(user_id: int, doc_id: str) -> KnowledgeContentRes
             document_loader_service.load_text, file_path, row["file_type"]
         )
     except Exception as e:
-        logger.error("kb_document_content_failed", doc_id=doc_id, user_id=user_id, error=str(e))
-        raise KnowledgeBaseError(f"文档解析失败：{str(e)[:200]}")
+        logger.error("kb_document_content_failed", doc_id=doc_id, user_id=user_id, error_type=type(e).__name__)
+        raise KnowledgeBaseError("文档解析失败，请检查文件是否完整及格式是否受支持") from None
 
     if not text.strip():
         raise KnowledgeBaseError("文档解析后未提取到任何文字内容")
@@ -168,8 +168,8 @@ async def delete_document(user_id: int, doc_id: str) -> None:
     try:
         vector_store_service.delete_document_vectors(user_id, doc_id)
     except Exception as e:
-        logger.warning("kb_document_vector_delete_failed", doc_id=doc_id, error=str(e))
-        raise KnowledgeBaseError("文档向量删除失败，请重试删除") from e
+        logger.warning("kb_document_vector_delete_failed", doc_id=doc_id, error_type=type(e).__name__)
+        raise KnowledgeBaseError("文档向量删除失败，请重试删除") from None
 
     try:
         file_path = os.path.join(settings.kb_upload_dir, f"{doc_id}.{row['file_type']}")
@@ -178,11 +178,11 @@ async def delete_document(user_id: int, doc_id: str) -> None:
         except FileNotFoundError:
             pass  # A previous attempt may already have removed the original file.
     except Exception as e:
-        logger.warning("kb_document_file_delete_failed", doc_id=doc_id, error=str(e))
-        raise KnowledgeBaseError("文档原始文件删除失败，请检查本地存储后重试删除") from e
+        logger.warning("kb_document_file_delete_failed", doc_id=doc_id, error_type=type(e).__name__)
+        raise KnowledgeBaseError("文档原始文件删除失败，请检查本地存储后重试删除") from None
 
     try:
         await knowledge_repository.delete_document(doc_id, user_id)
     except Exception as e:
-        logger.warning("kb_document_db_delete_failed", doc_id=doc_id, error=str(e))
-        raise KnowledgeBaseError("文档记录删除失败，请检查本地存储后重试删除") from e
+        logger.warning("kb_document_db_delete_failed", doc_id=doc_id, error_type=type(e).__name__)
+        raise KnowledgeBaseError("文档记录删除失败，请检查本地存储后重试删除") from None

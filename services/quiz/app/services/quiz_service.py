@@ -48,7 +48,7 @@ async def _maybe_generate_images(
                 q.image_url = image_map[q.id]
         return notice
     except Exception as e:
-        logger.error("quiz_image_generation_failed", quiz_id=quiz_id, error=str(e))
+        logger.error("quiz_image_generation_failed", quiz_id=quiz_id, error_type=type(e).__name__)
         return None
 
 
@@ -96,9 +96,11 @@ async def handle_quiz_generate(
             difficulty=req.difficulty,
             search_context=search_context,
         )
+    except QuizGenerationError:
+        raise
     except Exception as e:
-        logger.error("quiz_generation_failed", error=str(e))
-        raise QuizGenerationError(f"题库生成失败：{e}") from e
+        logger.error("quiz_generation_failed", error_type=type(e).__name__)
+        raise QuizGenerationError("题库生成失败，请检查设置中的文本模型连接后重试") from None
 
     quiz_id = f"quiz_{uuid.uuid4().hex[:12]}"
 
@@ -117,8 +119,8 @@ async def handle_quiz_generate(
                 questions_json=[q.model_dump() for q in quiz_output.questions],
             )
         except Exception as e:
-            logger.error("quiz_session_save_failed", error=str(e))
-            raise QuizGenerationError("题库保存失败，请检查本地存储后重试") from e
+            logger.error("quiz_session_save_failed", error_type=type(e).__name__)
+            raise QuizGenerationError("题库保存失败，请检查本地存储后重试") from None
 
     return QuizGenerateResponse(
         quiz_id=quiz_id,
@@ -196,8 +198,8 @@ async def _run_quiz_task(
                     questions_json=[q.model_dump() for q in quiz_output.questions],
                 )
             except Exception as e:
-                logger.error("quiz_session_save_failed", task_id=task_id, error=str(e))
-                raise QuizGenerationError("题库保存失败，请检查本地存储后重试") from e
+                logger.error("quiz_session_save_failed", task_id=task_id, error_type=type(e).__name__)
+                raise QuizGenerationError("题库保存失败，请检查本地存储后重试") from None
 
         result = QuizGenerateResponse(
             quiz_id=quiz_id,
@@ -213,9 +215,9 @@ async def _run_quiz_task(
         logger.info("quiz_task_completed", task_id=task_id, quiz_id=quiz_id)
 
     except Exception as e:
-        logger.error("quiz_task_failed", task_id=task_id, error=str(e))
+        logger.error("quiz_task_failed", task_id=task_id, error_type=type(e).__name__)
         await task_repository.update_task_status(
-            task_id, "failed", error_message=str(e)[:500]
+            task_id, "failed", error_message=str(e) if isinstance(e, (QuizGenerationError, KnowledgeBaseError, ContentFilterError)) else "题库生成失败，请检查模型配置和本地存储后重试"
         )
 
 

@@ -36,17 +36,16 @@ async def wx_code_to_openid(code: str) -> str:
             )
             data = resp.json()
     except httpx.HTTPError as exc:
-        logger.error("wx_login_request_failed", error=str(exc), exc_info=True)
-        raise AuthenticationError("微信登录服务暂时不可用，请稍后重试") from exc
+        logger.error("wx_login_request_failed", error_type=type(exc).__name__)
+        raise AuthenticationError("微信登录服务暂时不可用，请稍后重试") from None
     except ValueError as exc:  # resp.json() 解析失败
-        logger.error("wx_login_invalid_response", error=str(exc), exc_info=True)
-        raise AuthenticationError("微信登录失败，请重试") from exc
+        logger.error("wx_login_invalid_response", error_type=type(exc).__name__)
+        raise AuthenticationError("微信登录失败，请重试") from None
 
     if "openid" not in data:
         logger.error(
             "wx_login_failed",
             errcode=data.get("errcode"),
-            errmsg=data.get("errmsg"),
             appid=settings.wechat_app_id,
         )
         raise AuthenticationError("微信登录失败，请重试")

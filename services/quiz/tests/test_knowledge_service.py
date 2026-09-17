@@ -128,7 +128,7 @@ async def test_process_document_loader_exception_marks_failed():
     args, kwargs = update_status_mock.call_args
     assert args[0] == "doc_1"
     assert args[1] == "failed"
-    assert kwargs["error_message"] == "解析失败"
+    assert kwargs["error_message"] == "文档处理失败，请检查文档格式、向量模型配置和本地存储后重试"
 
 
 @pytest.mark.asyncio

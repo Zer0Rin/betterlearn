@@ -36,13 +36,13 @@ def _build_agent():
 
         async def on_tool_start(self, serialized, input_str, *, run_id, **kwargs):
             tool_name = serialized.get("name", "unknown")
-            logger.info("tool_call_start", tool=tool_name, input=str(input_str)[:500])
+            logger.info("tool_call_start", tool=tool_name, input_length=len(str(input_str)))
 
         async def on_tool_end(self, output, *, run_id, **kwargs):
-            logger.info("tool_call_end", output_length=len(str(output)), output_preview=str(output)[:500])
+            logger.info("tool_call_end", output_length=len(str(output)))
 
         async def on_tool_error(self, error, *, run_id, **kwargs):
-            logger.warning("tool_call_error", error=str(error)[:300])
+            logger.warning("tool_call_error", error_type=type(error).__name__)
 
         async def on_llm_start(self, serialized, prompts, *, run_id, **kwargs):
             logger.debug("llm_call_start", model=serialized.get("kwargs", {}).get("model", "unknown"))
@@ -54,14 +54,14 @@ def _build_agent():
                 msg = getattr(gen, "message", None)
                 if msg and getattr(msg, "tool_calls", None):
                     logger.info("llm_tool_decision", tool_calls=[
-                        {"name": tc["name"], "args": str(tc["args"])[:200]}
+                        {"name": tc["name"]}
                         for tc in msg.tool_calls
                     ])
                 else:
                     content = getattr(msg, "content", "") if msg else str(gen)[:200]
-                    logger.debug("llm_call_end", content_preview=str(content)[:200])
+                    logger.debug("llm_call_end", content_length=len(str(content)))
             except Exception:
-                logger.debug("llm_call_end", raw=str(response)[:200])
+                logger.debug("llm_call_end", response_type=type(response).__name__)
 
     tool_logger = _ToolLogger()
 
@@ -161,13 +161,12 @@ async def fetch_knowledge_context(user_input: str) -> str:
         )
         for i, msg in enumerate(messages):
             msg_type = type(msg).__name__
-            content_preview = str(getattr(msg, "content", ""))[:200]
             tool_calls = getattr(msg, "tool_calls", None)
             logger.debug(
                 "search_agent_message",
                 index=i,
                 type=msg_type,
-                content_preview=content_preview,
+                content_length=len(str(getattr(msg, "content", ""))),
                 tool_calls=len(tool_calls) if tool_calls else 0,
             )
 
@@ -198,7 +197,7 @@ async def fetch_knowledge_context(user_input: str) -> str:
             if any("401" in error or "Unauthorized" in error for error in tool_errors):
                 raise QuizGenerationError("联网搜索失败：Tavily 返回 401，API Key 未通过授权。请检查 quiz.env 中的 TAVILY_API_KEY 并重启 BetterLearn，再重新生成练习。")
             raise QuizGenerationError("联网搜索未获取到有效资料，本次未继续出题。请补充主题所属领域或网址后重试，也可明确关闭联网搜索后使用模型知识出题。")
-        logger.info("search_sources_verified", source_count=len(set(sources)), urls=list(dict.fromkeys(sources))[:10])
+        logger.info("search_sources_verified", source_count=len(set(sources)))
 
         # 提取 Agent 最终回复
         content = result["messages"][-1].content

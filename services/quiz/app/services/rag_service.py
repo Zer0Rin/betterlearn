@@ -29,7 +29,7 @@ def _build_knowledge_base_tool(user_id: int, doc_id: str):
         try:
             docs = vector_store_service.similarity_search(user_id=user_id, doc_id=doc_id, query=query)
         except Exception as e:
-            logger.warning("kb_retrieval_failed", user_id=user_id, doc_id=doc_id, error=str(e))
+            logger.warning("kb_retrieval_failed", user_id=user_id, doc_id=doc_id, error_type=type(e).__name__)
             return json.dumps({"status": "error", "content": "知识库检索失败，未获取到内容。"}, ensure_ascii=False)
 
         if not docs:
@@ -166,6 +166,6 @@ async def fetch_rag_context(user_input: str, user_id: int, doc_id: str) -> str:
         raise
     except Exception as e:
         logger.warning(
-            "rag_agent_error", error=str(e), error_type=type(e).__name__, user_id=user_id, doc_id=doc_id
+            "rag_agent_error", error_type=type(e).__name__, user_id=user_id, doc_id=doc_id
         )
         raise QuizGenerationError("知识库检索暂时不可用，本次未继续出题。请检查向量模型配置后重试。") from None

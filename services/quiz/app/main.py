@@ -111,13 +111,12 @@ async def knowledge_base_error_handler(request: Request, exc: KnowledgeBaseError
 
 @app.exception_handler(Exception)
 async def unhandled_exception_handler(request: Request, exc: Exception):
-    """兜底异常处理：避免直接暴露裸的 "Internal Server Error"，并记录完整堆栈便于排查。"""
+    """兜底异常处理：避免直接暴露裸的 "Internal Server Error"，仅记录异常类型，避免暴露供应商响应和凭据。"""
     logger.error(
         "unhandled_exception",
         path=request.url.path,
         method=request.method,
-        error=str(exc),
-        exc_info=True,
+        error_type=type(exc).__name__,
     )
     return JSONResponse(
         status_code=500,

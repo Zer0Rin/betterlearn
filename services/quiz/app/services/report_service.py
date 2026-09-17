@@ -1,7 +1,7 @@
 """报告服务"""
 from typing import Optional
 import structlog
-from app.core.exceptions import ReportGenerationError
+from app.core.exceptions import ReportGenerationError, QuizGenerationError
 from app.llm.report_chain import generate_report
 from app.models.report import ReportGenerateRequest, ReportGenerateResponse
 from app.services.scoring_service import compute_score_summary
@@ -21,7 +21,7 @@ async def handle_report_generate(
             if existing is not None:
                 return ReportGenerateResponse(**existing)
             if await quiz_repository.get_quiz_detail(req.quiz_id, user_id) is None:
-                raise ValueError('闯关记录不存在或不属于当前用户')
+                raise ReportGenerationError('闯关记录不存在或不属于当前用户')
         report_output = await generate_report(
             topic=req.topic,
             questions=req.questions,
@@ -41,6 +41,10 @@ async def handle_report_generate(
                 xp_gain=10 + score_summary['correct'] * 2,
             )
         return ReportGenerateResponse(**output)
+    except ReportGenerationError:
+        raise
+    except QuizGenerationError as e:
+        raise ReportGenerationError(str(e)) from None
     except Exception as e:
-        logger.error('report_generation_failed', error=str(e))
-        raise ReportGenerationError(f'报告生成失败：{e}') from e
+        logger.error('report_generation_failed', error_type=type(e).__name__)
+        raise ReportGenerationError('报告生成失败，请检查模型配置和本地存储后重试') from None

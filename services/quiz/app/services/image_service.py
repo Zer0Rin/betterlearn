@@ -122,7 +122,7 @@ async def generate_images_for_quiz(
     try:
         used = await image_repository.get_today_usage_count(user_id)
     except Exception as e:
-        logger.warning("image_quota_check_failed", user_id=user_id, error=str(e))
+        logger.warning("image_quota_check_failed", user_id=user_id, error_type=type(e).__name__)
         used = 0
 
     remaining = max(0, settings.image_gen_daily_limit - used)
@@ -155,7 +155,7 @@ async def generate_images_for_quiz(
         try:
             await image_repository.log_image_generation(user_id, quiz_id, question_id, url)
         except Exception as e:
-            logger.warning("image_usage_log_failed", user_id=user_id, error=str(e))
+            logger.warning("image_usage_log_failed", user_id=user_id, error_type=type(e).__name__)
 
     failed = len(target_questions) - len(image_map)
     if failed:
