@@ -46,6 +46,8 @@ jobs:
           services/quiz/.venv/bin/python -m pip install -r services/quiz/requirements.txt
 
       - name: Build and run Web tests
+        env:
+          NOBEI_PHASE1_PYTHON: ${{ steps.setup-python.outputs.python-path }}
         run: pnpm test
 
       - name: Run Core tests
