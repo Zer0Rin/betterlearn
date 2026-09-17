@@ -13,9 +13,7 @@ from app.services import user_service, history_service
 router = APIRouter(prefix="/user", tags=["user"])
 
 
-@router.post("/host-session", response_model=ApiResponse)
-async def host_session(request: Request):
-    """Private session bootstrap; the managed middleware verifies the host secret."""
+def _require_managed_host(request: Request) -> None:
     from secrets import compare_digest
     settings = get_settings()
     supplied = request.headers.get("x-betterlearn-host", "")
@@ -24,6 +22,19 @@ async def host_session(request: Request):
         or not compare_digest(settings.managed_host_token.encode(), supplied.encode())
         or peer not in {"127.0.0.1", "::1"}):
         raise HTTPException(status_code=403, detail="Managed host required")
+
+
+@router.get("/active-tasks", response_model=ApiResponse)
+async def active_tasks(request: Request):
+    _require_managed_host(request)
+    from app.repositories.task_repository import has_active_tasks
+    return ApiResponse.success(data={"active": await has_active_tasks()})
+
+
+@router.post("/host-session", response_model=ApiResponse)
+async def host_session(request: Request):
+    """Private session bootstrap; the managed middleware verifies the host secret."""
+    _require_managed_host(request)
     result = await user_service.handle_local_login()
     return ApiResponse.success(data=result.model_dump())
 

@@ -140,3 +140,19 @@ def sample_report_request(sample_quiz_response_data, sample_answer_records):
         "questions": sample_quiz_response_data["questions"],
         "answer_records": sample_answer_records,
     }
+
+
+import pytest_asyncio
+from app.core import db
+from app.core.config import get_settings
+
+@pytest_asyncio.fixture
+async def database(tmp_path, monkeypatch):
+    monkeypatch.setenv('QUIZ_DB_PATH', str(tmp_path / 'quiz.sqlite3'))
+    get_settings.cache_clear()
+    assert hasattr(db, 'init_db'), 'SQLite lifecycle must replace MySQL initialization'
+    await db.close_db()
+    await db.init_db()
+    yield tmp_path / 'quiz.sqlite3'
+    await db.close_db()
+    get_settings.cache_clear()

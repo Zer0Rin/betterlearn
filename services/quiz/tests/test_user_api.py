@@ -384,7 +384,7 @@ class TestQuizWithOptionalAuth:
 class TestReportWithOptionalAuth:
     """确保报告接口在有/无 token 时都正常工作"""
 
-    async def test_report_generate_with_token_saves_data(self, auth_header, sample_report_request):
+    async def test_report_generate_with_token_saves_data(self, auth_header, sample_report_request, database):
         from app.models.report import ReportOutput
 
         mock_output = ReportOutput(
@@ -395,29 +395,28 @@ class TestReportWithOptionalAuth:
             advice=["a1"],
             share_quote="quote",
         )
+        from app.repositories import user_repository, quiz_repository
+        user = await user_repository.create_user('report-api')
+        assert user['id'] == 1
+        await quiz_repository.save_quiz_session(sample_report_request['quiz_id'], 1, 'title', '', '', sample_report_request['questions'])
         with patch(
             "app.services.report_service.generate_report",
             new_callable=AsyncMock,
             return_value=mock_output,
-        ), patch(
-            "app.services.report_service.quiz_repository.save_answer_record",
-            new_callable=AsyncMock,
-        ) as mock_save_ar, patch(
-            "app.services.report_service.quiz_repository.save_report",
-            new_callable=AsyncMock,
-        ) as mock_save_rp, patch(
-            "app.services.report_service.user_repository.add_user_xp",
-            new_callable=AsyncMock,
-        ) as mock_add_xp:
+        ) as provider:
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport, base_url="http://test") as client:
-                resp = await client.post(
-                    "/api/v1/report/generate",
-                    json=sample_report_request,
-                    headers=auth_header,
-                )
-            assert resp.status_code == 200
-            mock_save_ar.assert_called_once()
-            mock_save_rp.assert_called_once()
-            # XP = 10 + correct_count * 2 = 10 + 4 * 2 = 18
-            mock_add_xp.assert_called_once_with(1, 18)
+                responses = []
+                for _ in range(2):
+                    responses.append(await client.post(
+                        "/api/v1/report/generate",
+                        json=sample_report_request,
+                        headers=auth_header,
+                    ))
+            assert all(response.status_code == 200 for response in responses)
+            assert responses[0].json() == responses[1].json()
+            provider.assert_awaited_once()
+            assert (await user_repository.get_user_by_id(1))['total_xp'] == 18
+            detail = await quiz_repository.get_quiz_detail(sample_report_request['quiz_id'], 1)
+            assert detail['report']['accuracy'] == 80
+            assert len(detail['answer_records']) == 5

@@ -10,7 +10,7 @@ from fastapi.responses import JSONResponse
 
 from app.api.v1.routes import health, knowledge, quiz, report, user
 from app.core.config import get_settings
-from app.core.db import close_mysql_pool, init_mysql
+from app.core.db import close_db, init_db
 from app.core.exceptions import (
     AuthenticationError,
     ContentFilterError,
@@ -27,10 +27,11 @@ logger = structlog.get_logger()
 async def lifespan(app: FastAPI):
     settings = get_settings()
     logger.info("app_starting", host=settings.app_host, port=settings.app_port)
-    if settings.mysql_auto_init:
-        await init_mysql()
-    yield
-    await close_mysql_pool()
+    await init_db()
+    try:
+        yield
+    finally:
+        await close_db()
     logger.info("app_shutting_down")
 
 

@@ -53,7 +53,7 @@ class Settings(BaseSettings):
     cos_domain: str = ""
 
     # App
-    app_host: str = "0.0.0.0"
+    app_host: str = "127.0.0.1"
     app_port: int = 8000
     app_debug: bool = True
 
@@ -72,16 +72,9 @@ class Settings(BaseSettings):
     wechat_app_id: str = ""
     wechat_app_secret: str = ""
 
-    # MySQL
-    mysql_host: str = "localhost"
-    mysql_port: int = 3306
-    mysql_user: str = "root"
-    mysql_password: str = "123456"
-    mysql_database: str = "yu_ai_learn"
-    mysql_charset: str = "utf8mb4"
-    mysql_pool_minsize: int = 1
-    mysql_pool_maxsize: int = 10
-    mysql_auto_init: bool = True
+    # Local SQLite persistence
+    quiz_db_path: str = "./data/quiz.sqlite3"
+    local_image_dir: str = ""
 
     # Log
     log_level: str = "INFO"

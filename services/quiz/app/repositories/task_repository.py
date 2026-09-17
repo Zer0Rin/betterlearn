@@ -7,7 +7,7 @@ from typing import Optional
 
 import structlog
 
-from app.core.db import get_mysql_pool
+from app.core.db import transaction
 
 logger = structlog.get_logger()
 
@@ -19,16 +19,12 @@ async def create_task(
     question_count: int,
     difficulty: str,
 ) -> None:
-    pool = get_mysql_pool()
-    if pool is None:
-        return
-    async with pool.acquire() as conn:
-        async with conn.cursor() as cur:
-            await cur.execute(
-                "INSERT INTO quiz_tasks (task_id, user_id, user_input, question_count, difficulty, status) "
-                "VALUES (%s, %s, %s, %s, %s, 'pending')",
-                (task_id, user_id, user_input, question_count, difficulty),
-            )
+    with transaction() as cur:
+        cur.execute(
+            "INSERT INTO quiz_tasks (task_id, user_id, user_input, question_count, difficulty, status) "
+            "VALUES (?, ?, ?, ?, ?, 'pending')",
+            (task_id, user_id, user_input, question_count, difficulty),
+        )
 
 
 async def update_task_status(
@@ -37,38 +33,35 @@ async def update_task_status(
     result_json: Optional[dict] = None,
     error_message: Optional[str] = None,
 ) -> None:
-    pool = get_mysql_pool()
-    if pool is None:
-        return
-    async with pool.acquire() as conn:
-        async with conn.cursor() as cur:
-            await cur.execute(
-                "UPDATE quiz_tasks SET status = %s, result_json = %s, error_message = %s WHERE task_id = %s",
-                (
-                    status,
-                    json.dumps(result_json, ensure_ascii=False) if result_json else None,
-                    error_message,
-                    task_id,
-                ),
-            )
+    with transaction() as cur:
+        cur.execute(
+            "UPDATE quiz_tasks SET status = ?, result_json = ?, error_message = ? WHERE task_id = ?",
+            (
+                status,
+                json.dumps(result_json, ensure_ascii=False) if result_json else None,
+                error_message,
+                task_id,
+            ),
+        )
 
 
 async def get_task(task_id: str) -> Optional[dict]:
-    pool = get_mysql_pool()
-    if pool is None:
-        return None
-    async with pool.acquire() as conn:
-        async with conn.cursor(aiomysql.DictCursor) as cur:
-            await cur.execute(
-                "SELECT task_id, status, result_json, error_message FROM quiz_tasks WHERE task_id = %s",
-                (task_id,),
-            )
-            row = await cur.fetchone()
-            if row and row.get("result_json"):
-                if isinstance(row["result_json"], str):
-                    row["result_json"] = json.loads(row["result_json"])
-            return row
+    with transaction() as cur:
+        cur.execute(
+            "SELECT task_id, status, result_json, error_message FROM quiz_tasks WHERE task_id = ?",
+            (task_id,),
+        )
+        record = cur.fetchone()
+        row = dict(record) if record else None
+        if row and row.get("result_json"):
+            if isinstance(row["result_json"], str):
+                row["result_json"] = json.loads(row["result_json"])
+        return row
 
 
-# Need the import for DictCursor
-import aiomysql
+
+
+async def has_active_tasks() -> bool:
+    with transaction() as cur:
+        cur.execute("SELECT 1 FROM quiz_tasks WHERE status IN ('pending', 'running') LIMIT 1")
+        return cur.fetchone() is not None

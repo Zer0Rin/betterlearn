@@ -1,61 +1,17 @@
-"""用户数据访问层测试。"""
-
+"""User repository contracts against SQLite."""
+import asyncio
 import pytest
-
-from app.repositories import user_repository
-
-
-class FakeCursor:
-    def __init__(self):
-        self.executions = []
-        self.lastrowid = 41
-
-    async def __aenter__(self):
-        return self
-
-    async def __aexit__(self, exc_type, exc, tb):
-        return False
-
-    async def execute(self, sql, params):
-        self.executions.append((" ".join(sql.split()), params))
-
-    async def fetchone(self):
-        return (41, "local:web-single-user", "学习者", "", 0, None, None)
-
-
-class FakeConnection:
-    def __init__(self, cursor):
-        self._cursor = cursor
-
-    async def __aenter__(self):
-        return self
-
-    async def __aexit__(self, exc_type, exc, tb):
-        return False
-
-    def cursor(self):
-        return self._cursor
-
-
-class FakePool:
-    def __init__(self, cursor):
-        self._connection = FakeConnection(cursor)
-
-    def acquire(self):
-        return self._connection
+from app.repositories import user_repository as users
 
 
 @pytest.mark.asyncio
-async def test_get_or_create_user_uses_atomic_unique_key_upsert(monkeypatch):
-    cursor = FakeCursor()
-    monkeypatch.setattr(user_repository, "get_mysql_pool", lambda: FakePool(cursor))
-
-    user = await user_repository.get_or_create_user("local:web-single-user")
-
-    assert user["id"] == 41
-    assert user["openid"] == "local:web-single-user"
-    assert len(cursor.executions) == 2
-    assert "ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id)" in cursor.executions[0][0]
-    assert cursor.executions[0][1] == ("local:web-single-user",)
-    assert "WHERE id = %s" in cursor.executions[1][0]
-    assert cursor.executions[1][1] == (41,)
+async def test_get_or_create_user_uses_atomic_unique_key_upsert(database):
+    results = await asyncio.gather(*(users.get_or_create_user('local:web-single-user') for _ in range(12)))
+    assert len({result['id'] for result in results}) == 1
+    user = results[0]
+    await users.update_user_profile(user['id'], 'Name', 'avatar')
+    await users.add_user_xp(user['id'], 12)
+    stored = await users.find_user_by_openid('local:web-single-user')
+    assert stored['nickname'] == 'Name'
+    assert stored['avatar_url'] == 'avatar'
+    assert stored['total_xp'] == 12
