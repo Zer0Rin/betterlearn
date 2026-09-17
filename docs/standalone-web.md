@@ -19,6 +19,14 @@ node /absolute/path/to/standalone/betterlearn.mjs start --home /absolute/path/to
 
 开发验收可以显式传 `start --python /absolute/core/python --quiz-python /absolute/quiz/python` 使用已有隔离环境，此方式不替代面向普通使用者的 init。
 
+## 工作台窗口
+
+页面默认打开玻璃风格的独立工作台。右上角可收起或最大化；收起后点击页面右侧 BetterLearn 入口恢复。收起不会卸载当前界面，正在编辑的内容、当前选项与提取任务保留。
+
+拖动窗口左边、底边或左下角调整大小。Tab 可聚焦拉伸手柄，方向键每次调整 20px，按住 Shift 调整 50px；左侧手柄按左箭头扩大宽度、右箭头缩小。手动尺寸在此浏览器内记忆，最大化后还原会恢复原尺寸。窄屏自动适配视口，导航随窗口宽度收紧。学习区的课程路径与证据栏仍可分别收起。
+
+玻璃材质集中在窗口与导航，正文保持清晰底色。系统减少动态效果设置会关闭动画；不支持背景模糊的浏览器使用实色底。窗口外壳独立于业务组件，未来可以嵌入其他宿主；本版尚未接入 agent 或原生 SwiftUI。
+
 ## 模型设置
 
 文本连接填写 API 根地址（例如服务文档提供的 `/v1` 地址）、模型名称和 API Key。提取需要服务支持 Chat Completions 的指定 function tool calling；仅支持纯文本聊天的接口不能完成结构化提取。出题和复盘共用当前文本模型，现有课程学习逻辑保持原实现。

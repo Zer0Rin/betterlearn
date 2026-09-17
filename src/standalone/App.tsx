@@ -1,3 +1,4 @@
+import { WorkbenchWindow } from './WorkbenchWindow.js'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { BookOpen, FileText, GraduationCap, History, Layers3, Settings2, ChartNoAxesCombined } from 'lucide-react'
 import { createClientApi } from '../client/client-api.js'
@@ -146,12 +147,12 @@ export function StandaloneApp({api, fetcher = globalThis.fetch, storage = window
   }
   const activeBook=books.find(book=>book.bookId===activeBookId)
   const title=area==='knowledge'?'知识提取':area==='settings'?'设置':area==='quiz'?'知识库与练习':area==='compose'?'整理学习书':'学习空间'
-  return <div className="standalone-app">
+  return <WorkbenchWindow storage={storage} title={title}><div className="standalone-app">
     <aside className="standalone-sidebar">
       <a className="standalone-brand" href="#" onClick={e=>{e.preventDefault();setArea('library')}}><span>BL</span><div>BetterLearn<small>本地学习工作台</small></div></a>
       <nav aria-label="主导航">{navigation.map(item=>{
         const selected=area===item.area && (item.area!=='quiz'||quizRoute===item.route)
-        return <button type="button" key={item.label} aria-label={item.label} aria-current={selected?'page':undefined} onClick={()=>{
+        return <button type="button" key={item.label} title={item.label} aria-label={item.label} aria-current={selected?'page':undefined} onClick={()=>{
           setArea(item.area);setHistoryOpen(false);if(item.area==='quiz')setQuizRoute(item.route)
         }}><item.icon size={19}/><span>{item.label}</span></button>
       })}</nav>
@@ -184,5 +185,5 @@ export function StandaloneApp({api, fetcher = globalThis.fetch, storage = window
         </div>
       </div>
     </div>
-  </div>
+  </div></WorkbenchWindow>
 }
