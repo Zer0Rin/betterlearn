@@ -28,6 +28,8 @@ def _build_agent():
     from langchain_tavily import TavilyExtract, TavilySearch
 
     settings = get_settings()
+    if not settings.deepseek_api_key.strip():
+        raise QuizGenerationError("请先在设置中配置文本模型 API Key")
 
     class _ToolLogger(AsyncCallbackHandler):
         """记录每个工具调用的参数和结果"""
@@ -97,6 +99,7 @@ def _build_agent():
         model=settings.deepseek_model,
         base_url=settings.deepseek_base_url,
         api_key=settings.deepseek_api_key,
+        max_retries=0,
         temperature=0.1,
         callbacks=[tool_logger],
     )

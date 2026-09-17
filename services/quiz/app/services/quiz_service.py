@@ -118,6 +118,7 @@ async def handle_quiz_generate(
             )
         except Exception as e:
             logger.error("quiz_session_save_failed", error=str(e))
+            raise QuizGenerationError("题库保存失败，请检查本地存储后重试") from e
 
     return QuizGenerateResponse(
         quiz_id=quiz_id,
@@ -196,6 +197,7 @@ async def _run_quiz_task(
                 )
             except Exception as e:
                 logger.error("quiz_session_save_failed", task_id=task_id, error=str(e))
+                raise QuizGenerationError("题库保存失败，请检查本地存储后重试") from e
 
         result = QuizGenerateResponse(
             quiz_id=quiz_id,

@@ -46,6 +46,8 @@ def _build_agent(user_id: int, doc_id: str):
     from langchain_openai import ChatOpenAI
 
     settings = get_settings()
+    if not settings.deepseek_api_key.strip():
+        raise QuizGenerationError("请先在设置中配置文本模型 API Key")
 
     tools = [_build_knowledge_base_tool(user_id, doc_id)]
 
@@ -85,6 +87,7 @@ def _build_agent(user_id: int, doc_id: str):
         model=settings.deepseek_model,
         base_url=settings.deepseek_base_url,
         api_key=settings.deepseek_api_key,
+        max_retries=0,
         temperature=0.1,
     )
 

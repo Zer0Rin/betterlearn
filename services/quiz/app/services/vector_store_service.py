@@ -11,6 +11,7 @@ from langchain_core.documents import Document
 from langchain_core.embeddings import Embeddings
 
 from app.core.config import get_settings
+from app.core.exceptions import KnowledgeBaseError
 
 logger = structlog.get_logger()
 
@@ -61,10 +62,13 @@ def get_embeddings() -> Embeddings:
     from langchain_openai import OpenAIEmbeddings
 
     settings = get_settings()
+    if not settings.dashscope_api_key.strip():
+        raise KnowledgeBaseError("请先在设置中配置向量模型 API Key")
     return OpenAIEmbeddings(
         model=settings.dashscope_embedding_model,
         base_url=settings.dashscope_base_url,
         api_key=settings.dashscope_api_key,
+        max_retries=0,
         check_embedding_ctx_length=False,
         chunk_size=10,
     )
