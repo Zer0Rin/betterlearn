@@ -1,3 +1,4 @@
+import { createProductOperations } from './operations.js'
 import { isAbsolute } from 'node:path'
 import { timingSafeEqual } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
@@ -141,122 +142,11 @@ export async function applyProductPlugin(
     ? dependencies.createKnowledgeBaseSource(config, quizService)
     : dependencies.createKnowledgeBaseSource(config)
 
-  const operations: ProductOperations = {
-    previewDocument: (params, signal) => supervisor
-      ? supervisor.withReadyClient((client) => client.previewDocument(params, signal))
-      : Promise.reject(new Error('CORE_UNAVAILABLE')),
-    previewDshConversations: async (sessionIds, signal) => {
-      if (!conversationSource || !supervisor) throw new Error('CORE_UNAVAILABLE')
-      const document = await conversationSource.read(sessionIds, signal)
-      const preview = await supervisor.withReadyClient(client => client.previewDocument({
-        filename: document.filename,
-        mediaType: document.mediaType,
-        text: document.text,
-      }, signal))
-      return { ...document, extractionPlan: preview.extractionPlan }
-    },
-    listKnowledgeBaseDocuments: async (signal) => {
-      if (!knowledgeBaseSource) return { documents: [], configured: false }
-      return { documents: await knowledgeBaseSource.list(signal), configured: true }
-    },
-    previewKnowledgeBase: async (docIds, signal) => {
-      if (!knowledgeBaseSource || !supervisor) throw new Error('CORE_UNAVAILABLE')
-      const document = await knowledgeBaseSource.read(docIds, signal)
-      const preview = await supervisor.withReadyClient(client => client.previewDocument({
-        filename: document.filename,
-        mediaType: document.mediaType,
-        text: document.text,
-      }, signal))
-      return {
-        docIds: document.docIds,
-        filename: document.filename,
-        mediaType: document.mediaType,
-        text: document.text,
-        contentDigest: document.contentDigest,
-        documentCount: document.documentCount,
-        characterCount: document.characterCount,
-        byteSize: document.byteSize,
-        extractionPlan: preview.extractionPlan,
-      }
-    },
-    watchRun: (runId, onChange) => coordinator!.watchRun(runId, onChange),
-    getProgress: runId => coordinator!.getProgress(runId),
-    launchImport: (params, signal) => coordinator
-      ? coordinator.launchImport(params, signal)
-      : Promise.reject(new Error('CORE_UNAVAILABLE')),
-    importDshConversations: async (params, signal) => {
-      if (!conversationSource || !coordinator) throw new Error('CORE_UNAVAILABLE')
-      const document = await conversationSource.read(params.sessionIds, signal)
-      const actual = Buffer.from(document.contentDigest, 'hex')
-      const expected = Buffer.from(params.expectedDigest, 'hex')
-      if (actual.length !== 32 || expected.length !== 32 || !timingSafeEqual(actual, expected)) {
-        throw new DshConversationSourceError('DSH_CONVERSATION_CHANGED')
-      }
-      return coordinator.launchImport({
-        filename: document.filename,
-        mediaType: document.mediaType,
-        text: document.text,
-        modelSelection: params.modelSelection,
-      }, signal)
-    },
-    launchRetry: (params, signal) => coordinator
-      ? coordinator.launchRetry(params, signal)
-      : Promise.reject(new Error('CORE_UNAVAILABLE')),
-    importKnowledgeBase: async (params, signal) => {
-      if (!knowledgeBaseSource || !coordinator) throw new Error('CORE_UNAVAILABLE')
-      const document = await knowledgeBaseSource.read(params.docIds, signal)
-      const actual = Buffer.from(document.contentDigest, 'hex')
-      const expected = Buffer.from(params.expectedDigest, 'hex')
-      if (actual.length !== 32 || expected.length !== 32 || !timingSafeEqual(actual, expected)) {
-        throw new KnowledgeBaseSourceError('KNOWLEDGE_BASE_CHANGED')
-      }
-      return coordinator.launchImport({
-        filename: document.filename,
-        mediaType: document.mediaType,
-        text: document.text,
-        modelSelection: params.modelSelection,
-      }, signal)
-    },
-    listRuns: signal => supervisor
-      ? supervisor.withReadyClient((client) => client.listRuns(signal))
-      : Promise.reject(new Error('CORE_UNAVAILABLE')),
-    getRun: (runId, signal) => supervisor
-      ? supervisor.withReadyClient((client) => client.getRun({ runId }, signal))
-      : Promise.reject(new Error('CORE_UNAVAILABLE')),
-    listEvents: (runId, after, signal) => supervisor
-      ? supervisor.withReadyClient((client) => client.listEvents({ runId, after }, signal))
-      : Promise.reject(new Error('CORE_UNAVAILABLE')),
-    listCandidates: (runId, signal) => supervisor
-      ? supervisor.withReadyClient((client) => client.listCandidates({ runId }, signal))
-      : Promise.reject(new Error('CORE_UNAVAILABLE')),
-    reviewCandidate: (params, signal) => supervisor
-      ? supervisor.withReadyClient((client) => client.reviewCandidate(params, signal))
-      : Promise.reject(new Error('CORE_UNAVAILABLE')),
-    listKnowledgePoints: (runId, signal) => supervisor
-      ? supervisor.withReadyClient((client) => client.listKnowledgePoints({ runId }, signal))
-      : Promise.reject(new Error('CORE_UNAVAILABLE')),
-    updateKnowledgePoint: (params, signal) => supervisor
-      ? supervisor.withReadyClient((client) => client.updateKnowledgePoint(params, signal))
-      : Promise.reject(new Error('CORE_UNAVAILABLE')),
-    deleteRun: async (runId, signal) => {
-      await coordinator!.terminateRun(runId)
-      return supervisor
-        ? supervisor.withReadyClient((client) => client.deleteRun({ runId }, signal))
-        : Promise.reject(new Error('CORE_UNAVAILABLE'))
-    },
-    syncLearningCourse: (params, signal) => supervisor
-      ? supervisor.withReadyClient(client => client.syncLearningCourse(params, signal))
-      : Promise.reject(new Error('CORE_UNAVAILABLE')),
-    getLearningCourse: (courseId, signal) => supervisor
-      ? supervisor.withReadyClient(client => client.getLearningCourse({ courseId }, signal))
-      : Promise.reject(new Error('CORE_UNAVAILABLE')),
-    deleteLearningCourse: (courseId, signal) => supervisor
-      ? supervisor.withReadyClient(client => client.deleteLearningCourse({ courseId }, signal))
-      : Promise.reject(new Error('CORE_UNAVAILABLE')),
-    submitLearningAttempt: (params, signal) => supervisor
-      ? supervisor.withReadyClient(client => client.submitLearningAttempt(params, signal))
-      : Promise.reject(new Error('CORE_UNAVAILABLE')),
-  }
+  const operations = createProductOperations({
+    get supervisor() { return supervisor }, get coordinator() { return coordinator },
+    get conversationSource() { return conversationSource }, knowledgeBaseSource,
+  })
+
   const state = {
     get state(): CoreSupervisor['state'] {
       return supervisor?.state ?? 'STARTING'

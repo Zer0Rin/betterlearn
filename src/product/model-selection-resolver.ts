@@ -3,18 +3,8 @@ import { ReasoningEffortId } from '@deepseek-ai/dsh-llm'
 import { GENERATION_MAX_TOKENS } from './constants.js'
 import type { ModelSelectionSnapshot } from './types.js'
 
-export interface ModelSelectionResolver {
-  resolve(selection: ModelSelectionSnapshot, signal?: AbortSignal): Promise<ModelSelectionSnapshot>
-}
-
-export class ModelSelectionResolutionError extends Error {
-  readonly code = 'MODEL_SELECTION_INVALID'
-
-  constructor() {
-    super('MODEL_SELECTION_INVALID')
-    this.name = 'ModelSelectionResolutionError'
-  }
-}
+import { ModelSelectionResolutionError, type ModelSelectionResolver } from './model-selection-port.js'
+export { ModelSelectionResolutionError, type ModelSelectionResolver } from './model-selection-port.js'
 
 function validText(value: unknown, maxLength: number): value is string {
   return typeof value === 'string'

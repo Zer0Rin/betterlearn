@@ -5,7 +5,7 @@ import { CoreRpcError } from '../src/product/core-rpc-client.js'
 import {
   DSH_CONVERSATION_MEDIA_TYPE,
   DshConversationSourceError,
-} from '../src/product/dsh-conversation-source.js'
+} from '../src/product/conversation-error.js'
 import { GenerationBusyError } from '../src/product/generation-coordinator.js'
 import { ModelSelectionResolutionError } from '../src/product/model-selection-resolver.js'
 import { registerProductRoutes, type ProductOperations } from '../src/product/routes.js'

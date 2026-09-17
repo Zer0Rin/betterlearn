@@ -16,7 +16,7 @@ import type {
   RetryAndPrepareParams,
   ModelSelectionSnapshot,
 } from './types.js'
-import type { ModelSelectionResolver } from './model-selection-resolver.js'
+import type { ModelSelectionResolver } from './model-selection-port.js'
 
 interface SupervisorPort {
   withReadyClient<T>(operation: (client: FixedCoreRpcClient) => Promise<T>): Promise<T>

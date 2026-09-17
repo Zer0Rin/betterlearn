@@ -13,7 +13,7 @@ import type { ModelDirectoryStatus } from '../use-nobei-workspace.js'
 import { modelSelectionLabel } from '../model-directory-bridge.js'
 import { DshConversationImport } from './DshConversationImport.js'
 import { KnowledgeBaseImport } from './KnowledgeBaseImport.js'
-import type { DshConversationSummary } from '../dsh-conversation-sessions.js'
+import type { DshConversationSummary } from '../conversation-summary.js'
 
 export interface ImportWorkspaceProps {
   standalone?: boolean

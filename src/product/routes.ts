@@ -1,11 +1,10 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
-import type { Context } from '@deepseek-ai/cordis'
+import type { RouteContext } from './http-port.js'
 import type { GenerationProgress } from '../generation-progress.js'
-import type {} from '@deepseek-ai/dsh-host-webserver'
 import { CoreRpcError } from './core-rpc-client.js'
 import { GenerationBusyError, type GenerationLaunch } from './generation-coordinator.js'
-import { ModelSelectionResolutionError } from './model-selection-resolver.js'
-import { DshConversationSourceError } from './dsh-conversation-source.js'
+import { ModelSelectionResolutionError } from './model-selection-port.js'
+import { DshConversationSourceError } from './conversation-error.js'
 import { KnowledgeBaseSourceError } from './knowledge-base-source.js'
 import {
   authorizeProductRequest,
@@ -390,7 +389,7 @@ function publicCoreError(error: CoreRpcError): { status: number; code: string } 
 }
 
 export function registerProductRoutes(
-  ctx: Context,
+  ctx: RouteContext,
   supervisor: SupervisorState,
   operations: ProductOperations,
 ): () => void {

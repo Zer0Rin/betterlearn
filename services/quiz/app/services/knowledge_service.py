@@ -156,10 +156,12 @@ async def get_document_content(user_id: int, doc_id: str) -> KnowledgeContentRes
 
 
 async def delete_document(user_id: int, doc_id: str) -> None:
-    """删除文档：级联清理向量、本地文件、数据库记录，任一步失败仅记录日志"""
+    """先清理向量和原始文件，最后删除记录；失败保留记录以便重试。"""
     row = await knowledge_repository.get_document(doc_id, user_id)
     if row is None:
         raise KnowledgeBaseError("文档不存在")
+    if row["status"] == "processing":
+        raise KnowledgeBaseError("文档正在处理中，请等待处理结束后再删除")
 
     settings = get_settings()
 
@@ -167,15 +169,20 @@ async def delete_document(user_id: int, doc_id: str) -> None:
         vector_store_service.delete_document_vectors(user_id, doc_id)
     except Exception as e:
         logger.warning("kb_document_vector_delete_failed", doc_id=doc_id, error=str(e))
+        raise KnowledgeBaseError("文档向量删除失败，请重试删除") from e
 
     try:
         file_path = os.path.join(settings.kb_upload_dir, f"{doc_id}.{row['file_type']}")
-        if os.path.exists(file_path):
+        try:
             os.remove(file_path)
+        except FileNotFoundError:
+            pass  # A previous attempt may already have removed the original file.
     except Exception as e:
         logger.warning("kb_document_file_delete_failed", doc_id=doc_id, error=str(e))
+        raise KnowledgeBaseError("文档原始文件删除失败，请检查本地存储后重试删除") from e
 
     try:
         await knowledge_repository.delete_document(doc_id, user_id)
     except Exception as e:
         logger.warning("kb_document_db_delete_failed", doc_id=doc_id, error=str(e))
+        raise KnowledgeBaseError("文档记录删除失败，请检查本地存储后重试删除") from e

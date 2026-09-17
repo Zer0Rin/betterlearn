@@ -1,4 +1,4 @@
-import type { Context } from '@deepseek-ai/cordis'
+import type { RouteContext } from './http-port.js'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { authorizeProductRequest } from './request-security.js'
 import type { QuizServicePort } from './quiz-service.js'
@@ -57,7 +57,7 @@ async function responseBody(response: Response): Promise<string> {
   return Buffer.concat(chunks).toString('utf8')
 }
 
-export function registerQuizRoutes(ctx: Context, service?: QuizServicePort): () => void {
+export function registerQuizRoutes(ctx: RouteContext, service?: QuizServicePort): () => void {
   const pending = new Set<AbortController>()
   const unregister = ctx.webServer.register({ kind: 'prefix', path: PREFIX, handler: async (req, res) => {
     const trust = authorizeProductRequest(req, req.method !== 'GET', ctx.webServer.port)
@@ -103,7 +103,7 @@ export function registerQuizRoutes(ctx: Context, service?: QuizServicePort): () 
     } catch (error) {
       if (!controller.signal.aborted) {
         if (error instanceof Error && error.message === 'BODY_TOO_LARGE') send(res, 413, 'BODY_TOO_LARGE')
-        else send(res, 503, '练习服务不可用，请检查 quiz.env、MySQL 和练习 Python 环境后重试')
+        else send(res, 503, '练习服务不可用，请检查 模型设置、本地数据库和练习 Python 环境后重试')
       }
     } finally { pending.delete(controller); res.off('close', disconnect) }
   } })

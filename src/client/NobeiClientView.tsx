@@ -7,7 +7,7 @@ import { RunProgress } from './components/RunProgress.js'
 import type { PollScheduler } from './poll-run.js'
 import { modelSelectionLabel, type ModelSelectionInput } from './model-directory-bridge.js'
 import type { ClientApi, KnowledgePointSnapshot } from './types.js'
-import type { DshConversationSummary } from './dsh-conversation-sessions.js'
+import type { DshConversationSummary } from './conversation-summary.js'
 import { useNobeiWorkspace, type WorkspaceScreen } from './use-nobei-workspace.js'
 import { workspaceCopy } from './workspace-copy.js'
 

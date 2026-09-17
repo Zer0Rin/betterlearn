@@ -246,7 +246,7 @@ async def test_delete_document_raises_when_not_found():
 
 @pytest.mark.asyncio
 async def test_delete_document_success_cascades(tmp_path):
-    row = {"doc_id": "doc_1", "file_name": "a.txt", "file_type": "txt"}
+    row = {"doc_id": "doc_1", "file_name": "a.txt", "file_type": "txt", "status": "ready"}
     file_path = tmp_path / "doc_1.txt"
     file_path.write_text("content")
 
@@ -272,8 +272,8 @@ async def test_delete_document_success_cascades(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_delete_document_tolerates_vector_delete_failure(tmp_path):
-    row = {"doc_id": "doc_1", "file_name": "a.txt", "file_type": "txt"}
+async def test_delete_document_preserves_metadata_and_file_on_vector_failure(tmp_path):
+    row = {"doc_id": "doc_1", "file_name": "a.txt", "file_type": "txt", "status": "ready"}
     file_path = tmp_path / "doc_1.txt"
     file_path.write_text("content")
 
@@ -290,11 +290,11 @@ async def test_delete_document_tolerates_vector_delete_failure(tmp_path):
         "app.services.knowledge_service.knowledge_repository.delete_document",
         delete_db_mock,
     ):
-        # 不应抛出异常，即使向量删除失败
-        await knowledge_service.delete_document(1, "doc_1")
+        with pytest.raises(KnowledgeBaseError, match="向量删除失败.*重试"):
+            await knowledge_service.delete_document(1, "doc_1")
 
-    delete_db_mock.assert_called_once_with("doc_1", 1)
-    assert not file_path.exists()
+    delete_db_mock.assert_not_awaited()
+    assert file_path.exists()
 
 
 @pytest.mark.asyncio
@@ -309,3 +309,61 @@ async def test_embedding_auth_failure_has_actionable_message():
         await knowledge_service._process_document("doc_1", 1, "/tmp/test.txt", "txt")
         assert update.await_args.args == ("doc_1", "failed")
         assert "DASHSCOPE_API_KEY" in update.await_args.kwargs["error_message"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('failure_stage', ['file', 'database'])
+async def test_delete_failure_preserves_record_and_retry_finishes(database, tmp_path, monkeypatch, failure_stage):
+    import sqlite3
+    from app.core.config import get_settings
+    from app.repositories import knowledge_repository, user_repository
+
+    uid = (await user_repository.create_user('delete-retry'))['id']
+    await knowledge_repository.create_document('doc_retry', uid, 'a.txt', 'txt', 7)
+    await knowledge_repository.update_document_status('doc_retry', 'ready', 1)
+    monkeypatch.setattr(get_settings(), 'kb_upload_dir', str(tmp_path))
+    original = tmp_path / 'doc_retry.txt'
+    original.write_text('content')
+    vectors = {'doc_retry'}
+    def delete_vectors(user_id, doc_id):
+        vectors.discard(doc_id)  # Simulates the vector store's idempotent deletion.
+    monkeypatch.setattr(knowledge_service.vector_store_service, 'delete_document_vectors', delete_vectors)
+
+    if failure_stage == 'database':
+        with sqlite3.connect(database) as conn:
+            conn.execute("CREATE TRIGGER reject_delete BEFORE DELETE ON kb_documents BEGIN SELECT RAISE(ABORT, 'private database failure'); END")
+        with pytest.raises(KnowledgeBaseError, match='^文档记录删除失败，请检查本地存储后重试删除$'):
+            await knowledge_service.delete_document(uid, 'doc_retry')
+        assert not original.exists()
+        with sqlite3.connect(database) as conn:
+            conn.execute('DROP TRIGGER reject_delete')
+    else:
+        with patch('app.services.knowledge_service.os.remove', side_effect=PermissionError('private path')):
+            with pytest.raises(KnowledgeBaseError, match='^文档原始文件删除失败，请检查本地存储后重试删除$'):
+                await knowledge_service.delete_document(uid, 'doc_retry')
+        assert original.exists()
+
+    assert await knowledge_repository.get_document('doc_retry', uid) is not None
+    assert not vectors
+    await knowledge_service.delete_document(uid, 'doc_retry')
+    assert await knowledge_repository.get_document('doc_retry', uid) is None
+    assert not original.exists()
+    assert not vectors
+
+
+@pytest.mark.asyncio
+async def test_delete_processing_document_rejected_before_cleanup(database, tmp_path, monkeypatch):
+    from app.core.config import get_settings
+    from app.repositories import knowledge_repository, user_repository
+
+    uid = (await user_repository.create_user('delete-processing'))['id']
+    await knowledge_repository.create_document('doc_busy', uid, 'a.txt', 'txt', 7)
+    monkeypatch.setattr(get_settings(), 'kb_upload_dir', str(tmp_path))
+    original = tmp_path / 'doc_busy.txt'
+    original.write_text('content')
+    with patch('app.services.knowledge_service.vector_store_service.delete_document_vectors') as vectors:
+        with pytest.raises(KnowledgeBaseError, match='正在处理中'):
+            await knowledge_service.delete_document(uid, 'doc_busy')
+        vectors.assert_not_called()
+    assert original.read_text() == 'content'
+    assert (await knowledge_repository.get_document('doc_busy', uid))['status'] == 'processing'

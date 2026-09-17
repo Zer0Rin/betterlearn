@@ -51,7 +51,7 @@ export class QuizService implements QuizServicePort {
     const child = spawn(this.config.pythonExecutable,
       this.options.commandArgs ?? [join(this.config.packageRoot, 'services/quiz/run_managed.py')], {
         cwd: this.config.dataRoot,
-        env: { ...process.env, PYTHONPATH: join(this.config.packageRoot, 'services/quiz'),
+        env: { PATH: process.env.PATH, HOME: process.env.HOME, TMPDIR: process.env.TMPDIR, PYTHONPATH: join(this.config.packageRoot, 'services/quiz'),
           BETTERLEARN_QUIZ_ENV_FILE: this.config.envFile,
           MANAGED_HOST_TOKEN: this.hostToken, JWT_SECRET: this.jwtSecret,
           APP_HOST: '127.0.0.1', APP_DEBUG: 'false', LOCAL_LOGIN_ENABLED: 'false',
@@ -64,7 +64,7 @@ export class QuizService implements QuizServicePort {
     let buffer = ''
     child.on('error', () => { failure = new Error('无法启动练习服务，请检查练习 Python 环境') })
     child.on('exit', () => {
-      failure ??= new Error('练习服务退出，请检查 quiz.env、MySQL 和模型配置')
+      failure ??= new Error('练习服务退出，请检查 模型设置和本地数据库')
       this.baseUrl = undefined; this.login = undefined; this.starting = undefined
     })
     child.stdout.on('data', (chunk: Buffer) => {
@@ -97,7 +97,7 @@ export class QuizService implements QuizServicePort {
       }
       await delay(50)
     }
-    throw new Error('练习服务启动超时，请检查 quiz.env 和 MySQL 是否可用')
+    throw new Error('练习服务启动超时，请检查 练习 Python 环境和本地数据库是否可用')
   }
 
   private async raw(path: string, init: RequestInit = {}): Promise<Response> {
@@ -114,7 +114,7 @@ export class QuizService implements QuizServicePort {
     this.login ??= this.raw('/user/host-session', { method: 'POST' }).then(async response => {
       const body = await response.json() as { code?: number; data?: Session }
       if (!response.ok || body.code !== 0 || !body.data || typeof body.data.token !== 'string') {
-        throw new Error('无法建立练习身份，请检查 MySQL 和练习服务配置')
+        throw new Error('无法建立练习身份，请检查 本地数据库和练习服务配置')
       }
       return body.data
     }).catch(error => { this.login = undefined; throw error })
