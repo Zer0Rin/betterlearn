@@ -1,5 +1,5 @@
 import type { CandidateContract } from '../product/contract.js'
-import { GENERATION_TIMEOUT_MS } from '../product/constants.js'
+import { GENERATION_TIMEOUT_MS, GENERATION_MAX_TOKENS } from '../product/constants.js'
 import { PlannedGenerationAdapter, type GenerationAdapter, type GenerationAdapterResult, type GenerationHandle } from '../product/generation-plan.js'
 import type { ModelSelectionSnapshot, PreparedGeneration } from '../product/types.js'
 import type { GenerationProgress } from '../generation-progress.js'
@@ -50,6 +50,7 @@ export class StandaloneGenerationAdapter implements GenerationAdapter {
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${frozen.apiKey}` },
             body: JSON.stringify({
               model: frozen.model,
+              max_tokens: GENERATION_MAX_TOKENS,
               ...(selection.reasoningEffort ? { reasoning_effort: selection.reasoningEffort } : {}),
               messages: [{ role: 'user', content: prompt }],
               tools: [{ type: 'function', function: { name: 'structured_output', description: 'Return the requested extraction or plan.', parameters: schema } }],

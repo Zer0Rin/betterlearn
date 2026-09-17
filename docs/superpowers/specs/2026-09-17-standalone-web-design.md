@@ -2,7 +2,7 @@
 
 日期：2026-09-17
 
-状态：用户已确认产品方向、Web 优先于 Electron、单人使用、练习服务改用 SQLite；本文具体设计待审阅。
+状态：用户已确认产品方向、Web 优先于 Electron、单人使用、练习服务改用 SQLite；用户已确认本文设计，实施与验收记录见 docs/standalone-web-verification.md。
 
 ## 1. 目标与边界
 

@@ -112,7 +112,7 @@ function KnowledgeCheck({ unit, selected, submittingId, error, onSelect, onSubmi
     || unit.mastery.status === 'mastered_after_remediation'
   return (
     <section className="betterlearn-learning__check" aria-labelledby={`check-${unit.unitId}`}>
-      <div className="betterlearn-learning__section-label"><span>理解检测</span><em>陈述辨析 · Core 判分</em></div>
+      <div className="betterlearn-learning__section-label"><span>理解检测</span><em>陈述辨析 · 即时反馈</em></div>
       <h3 id={`check-${unit.unitId}`}>{main.prompt}</h3>
       <Options options={main.options} selected={mainSelection} disabled={main.attempt !== null}
         onSelect={optionId => onSelect(main.assessmentId, optionId)} />

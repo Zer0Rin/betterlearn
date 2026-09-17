@@ -7,7 +7,7 @@ import {
   DshConversationSourceError,
 } from '../src/product/conversation-error.js'
 import { GenerationBusyError } from '../src/product/generation-coordinator.js'
-import { ModelSelectionResolutionError } from '../src/product/model-selection-resolver.js'
+import { ModelSelectionResolutionError } from '../src/product/model-selection-port.js'
 import { registerProductRoutes, type ProductOperations } from '../src/product/routes.js'
 import {
   KNOWLEDGE_BASE_MEDIA_TYPE,

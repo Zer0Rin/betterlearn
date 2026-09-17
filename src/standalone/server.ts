@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { SettingsStore } from './config.js'
 import { acquireHomeLock, initializeCore } from './home.js'
 import { NativeSubprocess } from './subprocess.js'
-import { LibraryStore } from './library.js'
+import { LibraryStore, LibraryConflictError } from './library.js'
 import { loadCandidateContract } from '../product/contract.js'
 import { CoreSupervisor } from '../product/core-supervisor.js'
 import { GenerationCoordinator } from '../product/generation-coordinator.js'
@@ -25,13 +25,16 @@ export async function startStandalone(options:StandaloneOptions){
  const routes:Array<{path:string;handler(req:IncomingMessage,res:ServerResponse):void|Promise<void>}>=[]
  const unregister:Array<()=>void>=[]
  let stopped=false;let settingsBusy=false;let requests=0
- const server=createServer((req,res)=>{requests++;res.once('close',()=>{requests--});void handle(req,res).catch(()=>{if(!res.headersSent)json(res,500,{message:'本机服务处理失败，请检查服务状态'});else res.end()})})
- const close=async()=>{if(stopped)return;stopped=true;unregister.forEach(fn=>fn());server.close();server.closeAllConnections();await coordinator?.dispose();await core?.dispose();await quiz?.dispose();await unlock()}
+ const handlers=new Set<Promise<void>>()
+ const server=createServer((req,res)=>{if(stopped){json(res,503,{message:'应用正在关闭'});return}requests++;res.once('close',()=>{requests--});const handler=handle(req,res).catch(()=>{if(!res.headersSent)json(res,500,{message:'本机服务处理失败，请检查服务状态'});else res.end()});handlers.add(handler);void handler.finally(()=>handlers.delete(handler))})
+ let closing:Promise<void>|undefined
+ const close=():Promise<void>=>closing??=(async()=>{stopped=true;unregister.forEach(fn=>fn());server.close();server.closeAllConnections();await Promise.allSettled([...handlers]);try{await coordinator?.dispose()}finally{try{await core?.dispose()}finally{try{await quiz?.dispose()}finally{await unlock()}}}})()
  let settings:SettingsStore;let library:LibraryStore
  const port=()=>{const address=server.address();return address&&typeof address!=='string'?address.port:0}
  const ctx:RouteContext={webServer:{get port(){return port()},register(route){routes.push(route);return()=>{const i=routes.indexOf(route);if(i>=0)routes.splice(i,1)}}}}
  const makeQuiz=()=>new QuizService({pythonExecutable:options.quizPythonExecutable,envFile:join(options.home,'quiz.env'),dataRoot:join(options.home,'quiz-data'),packageRoot:options.packageRoot})
  const quizPort:QuizServicePort={start:()=>quiz!.start(),session:()=>quiz!.session(),request:(p,i)=>quiz!.request(p,i),dispose:async()=>{await quiz?.dispose()}}
+ async function deleteCourse(id:string){try{await core!.withReadyClient(client=>client.deleteLearningCourse({courseId:id}))}catch(error){if((error as {code?:string}).code!=='LEARNING_COURSE_NOT_FOUND')throw error}}
  async function handle(req:IncomingMessage,res:ServerResponse){
   const pathname=new URL(req.url??'/','http://127.0.0.1').pathname
   // Same-origin applies to every private endpoint; top-level document navigation is allowed.
@@ -62,9 +65,12 @@ export async function startStandalone(options:StandaloneOptions){
    }catch(error){return json(res,400,{message:error instanceof Error?error.message:'无效设置'})}finally{settingsBusy=false}
   }
   if(pathname==='/api/model'&&req.method==='GET')return json(res,200,settings.selection())
+  if(pathname.startsWith('/api/library/books/')&&req.method==='DELETE'){
+   try{const body=await parseProductJsonBody(req) as {expectedRevision?:number};if(!Number.isSafeInteger(body.expectedRevision))return json(res,400,{message:'缺少书库版本'});const saved=await library.deleteBook(decodeURIComponent(pathname.slice('/api/library/books/'.length)),body.expectedRevision!,deleteCourse);return json(res,200,saved)}catch(error){return json(res,error instanceof LibraryConflictError?409:400,{message:error instanceof LibraryConflictError?error.message:'删除未完成，请重启应用恢复后重试'})}
+  }
   if(pathname==='/api/library'){
    if(req.method==='GET')return json(res,200,await library.read())
-   if(req.method==='PUT')try{return json(res,200,await library.write(await parseProductJsonBody(req)))}catch{return json(res,400,{message:'学习书数据无效或保存失败'})}
+   if(req.method==='PUT')try{return json(res,200,await library.write(await parseProductJsonBody(req)))}catch(error){return json(res,error instanceof LibraryConflictError?409:400,{message:error instanceof LibraryConflictError?error.message:'学习书数据无效或保存失败'})}
    return json(res,405,{message:'METHOD_NOT_ALLOWED'})
   }
   if(pathname.startsWith('/api/images/')&&req.method==='GET'){
@@ -75,6 +81,7 @@ export async function startStandalone(options:StandaloneOptions){
   const route=routes.find(r=>pathname===r.path||pathname.startsWith(r.path+'/'))
   if(route)return route.handler(req,res)
   if(api||req.method!=='GET')return json(res,404,{message:'NOT_FOUND'})
+  if(pathname==='/favicon.ico'){res.writeHead(204);res.end();return}
   const files:Record<string,string>={'/':'index.html','/index.html':'index.html','/app.js':'app.js','/app.css':'app.css'}
   const file=files[pathname];if(!file)return json(res,404,{message:'NOT_FOUND'})
   try{const data=await readFile(join(options.packageRoot,'public',file));res.writeHead(200,{'content-type':file.endsWith('.html')?'text/html; charset=utf-8':file.endsWith('.css')?'text/css':'text/javascript','x-content-type-options':'nosniff','content-security-policy':"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' https: data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'"});res.end(data)}catch{json(res,503,{message:'页面尚未构建，请先运行 build:web'})}
@@ -89,6 +96,7 @@ export async function startStandalone(options:StandaloneOptions){
   const knowledgeBaseSource=quiz?new KnowledgeBaseSource({baseUrl:'http://127.0.0.1',token:'managed',fetch:(input,init)=>quizPort.request(new URL(String(input)).pathname.replace(/^\/api\/v1/,''),{signal:init?.signal})}):undefined
   unregister.push(registerProductRoutes(ctx,core,createProductOperations({supervisor:core,coordinator,knowledgeBaseSource})),registerQuizRoutes(ctx,quiz?quizPort:undefined))
   await core.start()
+  await library.recoverDelete(deleteCourse)
   await new Promise<void>((resolve,reject)=>{server.once('error',reject);server.listen(options.port??3210,'127.0.0.1',resolve)})
   return {url:`http://127.0.0.1:${port()}`,close}
  }catch(error){await close();throw error}

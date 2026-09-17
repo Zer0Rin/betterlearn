@@ -1,7 +1,9 @@
 import { mkdtemp, rm } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
-import { afterEach, expect, test } from 'vitest'
+import { afterEach, expect, test, vi } from 'vitest'
+import { LibraryStore } from '../src/standalone/library.js'
+import { acquireHomeLock } from '../src/standalone/home.js'
 import { startStandalone } from '../src/standalone/server.js'
 let cleanup:(()=>Promise<void>)|undefined;let home:string|undefined
 afterEach(async()=>{await cleanup?.();cleanup=undefined;if(home)await rm(home,{recursive:true,force:true})})
@@ -19,3 +21,22 @@ test('native Core serves preview/history without DSH and protects settings',asyn
  expect((await (await fetch(app.url+'/api/library')).json()).books).toEqual([])
  const bad=await fetch(app.url+'/api/library',{method:'PUT',headers:{origin:app.url,'content-type':'application/json'},body:'{"books":[{"title":"bad"}]}'});expect(bad.status).toBe(400)
 },15000)
+test('shutdown drains an accepted write before releasing the data-directory lock',async()=>{
+ home=await mkdtemp(join(tmpdir(),'bl-drain-'))
+ const python=resolve('.venv-phase1b/bin/python')
+ const app=await startStandalone({home,packageRoot:resolve('.'),pythonExecutable:python,quizPythonExecutable:python,port:0,quiz:false})
+ cleanup=app.close
+ let enter!:()=>void,release!:()=>void
+ const entered=new Promise<void>(r=>{enter=r}),gate=new Promise<void>(r=>{release=r})
+ const original=LibraryStore.prototype.write
+ const spy=vi.spyOn(LibraryStore.prototype,'write').mockImplementation(async function(value){enter();await gate;return original.call(this,value)})
+ try{
+  const pending=fetch(app.url+'/api/library',{method:'PUT',headers:{origin:app.url,'content-type':'application/json'},body:JSON.stringify({books:[],expectedRevision:0})}).catch(()=>undefined)
+  await entered
+  const closing=app.close()
+  await expect(acquireHomeLock(home,python)).rejects.toThrow()
+  release();await closing;await pending
+  expect((await new LibraryStore(home).read()).revision).toBe(1)
+  const unlock=await acquireHomeLock(home,python);await unlock()
+ }finally{release();spy.mockRestore()}
+})

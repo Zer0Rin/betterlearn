@@ -232,7 +232,7 @@ export function ImportWorkspace({
       <header>
         <p className="nobei-client__eyebrow">新建学习材料</p>
         <h2 id="nobei-import-title">从一段原文开始</h2>
-        <p>导入 TXT、Markdown、有文字层的 PDF，或直接粘贴文本。Nobei 会先定位证据，再交给你审核。</p>
+        <p>导入 TXT、Markdown、有文字层的 PDF，或直接粘贴文本。BetterLearn 会先定位证据，再交给你审核。</p>
       </header>
 
       <button className="nobei-client__back" type="button" disabled={submitting}

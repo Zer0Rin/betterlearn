@@ -43,7 +43,7 @@ test('forces the named function, validates complete business contract and makes 
   expect(await run(fake.adapter)).toEqual({ ok: true, value: valid })
   expect(fake.requests).toHaveLength(1)
   expect(fake.requests[0]).toMatchObject({ url: '/v1/chat/completions', authorization: 'Bearer fake-secret', body: {
-    model: 'frozen', parallel_tool_calls: false, stream: false,
+    model: 'frozen', max_tokens: 32768, parallel_tool_calls: false, stream: false,
     tool_choice: { type: 'function', function: { name: 'structured_output' } },
   } })
   expect(fake.requests[0].body.tools[0].function.parameters).toEqual(contract.schema)

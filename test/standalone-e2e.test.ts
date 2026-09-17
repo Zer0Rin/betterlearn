@@ -1,4 +1,4 @@
-import { mkdtemp,rm } from 'node:fs/promises'
+import { mkdtemp,rm,mkdir,writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join,resolve } from 'node:path'
 import { test,expect } from 'vitest'
@@ -27,9 +27,15 @@ test('real services independently run extraction, library, RAG quiz, report and 
   const points=(await request(`/nobei/v1/runs/${launch.runId}/knowledge-points`)).result.knowledgePoints
   expect(points).toHaveLength(1)
   const book={bookId:'book-web',title:'植物学习书',createdAt:new Date().toISOString(),sourceText,points}
-  await request('/api/library',{books:[book]},'PUT')
+  await request('/api/library',{books:[book],expectedRevision:0},'PUT')
   const course=(await request('/nobei/v1/learning-courses',{clientBookId:book.bookId,title:book.title,knowledgePointIds:points.map((p:any)=>p.knowledgePointId)})).result
   expect(course.courseId).toBeTruthy()
+  const assessment=course.units[0].check.main
+  const attempt=(await request(`/nobei/v1/learning-assessments/${assessment.assessmentId}/attempts`,{optionId:assessment.options[0].optionId,idempotencyKey:'idem_bbbbbbbbbbbbbbbbbbbb'})).result
+  expect(attempt.attempt.assessmentId).toBe(assessment.assessmentId)
+  await request('/api/library',{books:[{...book,courseId:course.courseId,progress:attempt.course.progress}],expectedRevision:1},'PUT')
+  const staleDelete=await fetch(app.url+'/api/library/books/book-web',{method:'DELETE',headers:{origin:app.url,'content-type':'application/json'},body:JSON.stringify({expectedRevision:0})});expect(staleDelete.status).toBe(409)
+  expect((await request(`/nobei/v1/learning-courses/${course.courseId}`)).result.courseId).toBe(course.courseId)
   const session=await request('/nobei/quiz/v1/session',undefined,'POST');expect(session.code).toBe(0)
   const form=new FormData();form.append('file',new Blob([sourceText],{type:'text/plain'}),'植物.txt')
   const uploaded=await (await fetch(app.url+'/nobei/quiz/v1/knowledge/documents',{method:'POST',headers:{origin:app.url},body:form})).json()
@@ -46,12 +52,21 @@ test('real services independently run extraction, library, RAG quiz, report and 
   const calls=fake.calls.length
   await request('/nobei/quiz/v1/report/generate',{quiz_id:quiz.quiz_id,topic:quiz.title,questions:quiz.questions,answer_records:records})
   expect(fake.calls.length).toBe(calls)
+  const imageName='a'.repeat(32)+'.png';const imageBytes=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=','base64')
+  await mkdir(join(home,'quiz-data','images'),{recursive:true});await writeFile(join(home,'quiz-data','images',imageName),imageBytes)
   await app.close();app=undefined
   const backup=join(root,'backup'),restored=join(root,'restored');await backupHome(home,backup,options.pythonExecutable);await restoreHome(backup,restored,options.pythonExecutable)
   app=await startStandalone({...options,home:restored})
   expect((await request('/api/library')).books[0].title).toBe(book.title)
+  expect((await request(`/nobei/v1/learning-courses/${course.courseId}`)).result.units[0].check.main.attempt).not.toBeNull()
   expect((await request('/nobei/quiz/v1/user/quizzes')).data.total).toBe(1)
   expect((await request(`/nobei/quiz/v1/user/quizzes/${quiz.quiz_id}`)).data.report.accuracy).toBe(100)
   expect(fake.calls.length).toBe(calls)
+  expect(Buffer.from(await (await fetch(app.url+'/api/images/'+imageName)).arrayBuffer())).toEqual(imageBytes)
+  const rerun=await request('/nobei/quiz/v1/quiz/generate/async',{user_input:'光合作用',question_count:3,doc_id:docId,generate_images:false})
+  let restoredTask:any;for(let i=0;i<250;i++){restoredTask=(await request(`/nobei/quiz/v1/quiz/task/${rerun.data.task_id}`)).data;if(['completed','failed'].includes(restoredTask.status))break;await delay()}
+  expect(restoredTask.status,JSON.stringify(restoredTask)).toBe('completed')
+  const deleted=await request('/api/library/books/book-web',{expectedRevision:2},'DELETE');expect(deleted.books).toEqual([])
+  expect((await fetch(app.url+`/nobei/v1/learning-courses/${course.courseId}`)).status).toBe(404)
  }finally{await app?.close();await fake.close();await rm(root,{recursive:true,force:true})}
 },90000)
