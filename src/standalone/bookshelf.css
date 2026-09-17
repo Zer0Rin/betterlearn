@@ -1,0 +1,304 @@
+/* The standalone library uses book covers as its primary surface. */
+.standalone-app .betterlearn-library[data-presentation='desktop'] {
+  container: bookshelf / inline-size;
+  min-width: 0;
+  padding: 0;
+  color: #30332f;
+  background: transparent;
+}
+
+.standalone-app .betterlearn-library[data-presentation='desktop'] .betterlearn-library__heading {
+  align-items: center;
+  gap: 16px;
+  margin: 0 0 35px;
+}
+
+.standalone-app .betterlearn-library[data-presentation='desktop'] .betterlearn-library__heading > div:first-child {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.standalone-app .betterlearn-library[data-presentation='desktop'] .betterlearn-library__heading h1 {
+  margin: 0;
+  font: 600 23px/1.3 -apple-system, BlinkMacSystemFont, 'PingFang SC', sans-serif;
+  letter-spacing: -.5px;
+}
+
+.standalone-app .betterlearn-library[data-presentation='desktop'] .betterlearn-library__count {
+  color: #73786e;
+  font-size: 12px;
+}
+
+.standalone-app .betterlearn-library[data-presentation='desktop'] .betterlearn-library__heading-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.standalone-app .betterlearn-library[data-presentation='desktop'] .betterlearn-library__heading-actions button,
+.standalone-app .betterlearn-library[data-presentation='desktop'] .betterlearn-library__empty button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 29px;
+  padding: 5px 10px;
+  border: 1px solid #d8d9d3;
+  border-radius: 6px;
+  color: #4c5049;
+  background: #fff;
+  font: 400 12px/1.4 -apple-system, BlinkMacSystemFont, 'PingFang SC', sans-serif;
+  box-shadow: 0 1px 2px #30332f08;
+  cursor: pointer;
+}
+
+.standalone-app .betterlearn-library[data-presentation='desktop'] .betterlearn-library__heading-actions button:hover,
+.standalone-app .betterlearn-library[data-presentation='desktop'] .betterlearn-library__empty button:hover {
+  background: #f1f2ed;
+}
+
+.standalone-app .betterlearn-library[data-presentation='desktop'] .betterlearn-library__heading-actions button[aria-pressed='true'] {
+  border-color: #a7aca0;
+  background: #e8ebe3;
+}
+
+.standalone-app .betterlearn-library[data-presentation='desktop'] .betterlearn-library__shelf {
+  grid-template-columns: repeat(auto-fill, minmax(145px, 1fr));
+  align-items: start;
+  gap: 35px 32px;
+}
+
+.standalone-app .betterlearn-library[data-presentation='desktop'] .betterlearn-library__book-shell {
+  min-width: 0;
+  align-content: start;
+  justify-items: start;
+  gap: 12px;
+}
+
+.standalone-app .betterlearn-library[data-presentation='desktop'] .betterlearn-library__book {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+  width: 145px;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 2px;
+  color: inherit;
+  background: transparent;
+  box-shadow: none;
+  transform: none;
+}
+
+.standalone-app .betterlearn-library[data-presentation='desktop'] .betterlearn-library__book:hover,
+.standalone-app .betterlearn-library[data-presentation='desktop'] .betterlearn-library__book[data-new='true'] {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  transform: none;
+}
+
+.standalone-app .betterlearn-library[data-presentation='desktop'] .betterlearn-library__cover {
+  box-sizing: border-box;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  align-content: stretch;
+  width: 145px;
+  max-width: 100%;
+  height: 194px;
+  min-height: 194px;
+  padding: 18px 16px 16px 21px;
+  border: 1px solid #0000000a;
+  border-radius: 2px 4px 4px 2px;
+  color: #f5f3ec;
+  background: #485653;
+  box-shadow: inset 3px 0 #ffffff0f, inset 6px 0 #00000010, 2px 0 #e1e0d9, 4px 5px 9px #30332f19;
+  transition: transform 160ms ease, box-shadow 160ms ease;
+}
+
+.standalone-app .betterlearn-library[data-presentation='desktop'] .betterlearn-library__cover[data-point-type='process'] { background: #6d7456; }
+.standalone-app .betterlearn-library[data-presentation='desktop'] .betterlearn-library__cover[data-point-type='comparison'] { background: #5b6575; }
+.standalone-app .betterlearn-library[data-presentation='desktop'] .betterlearn-library__cover[data-point-type='formula'] { background: #65657a; }
+.standalone-app .betterlearn-library[data-presentation='desktop'] .betterlearn-library__cover[data-point-type='fact'] { background: #766b5b; }
+.standalone-app .betterlearn-library[data-presentation='desktop'] .betterlearn-library__cover[data-point-type='code'] { background: #42494d; }
+
+.standalone-app .betterlearn-library[data-presentation='desktop'] .betterlearn-library__book:hover:not(:disabled) .betterlearn-library__cover {
+  transform: translateY(-3px);
+  box-shadow: inset 3px 0 #ffffff0f, inset 6px 0 #00000010, 2px 0 #e1e0d9, 4px 8px 12px #30332f22;
+}
+
+.standalone-app .betterlearn-library[data-presentation='desktop'] .betterlearn-library__cover b {
+  display: -webkit-box;
+  align-self: start;
+  overflow: hidden;
+  margin-top: 22px;
+  font: 500 18px/1.45 'Songti SC', 'STSong', 'Noto Serif CJK SC', serif;
+  letter-spacing: .02em;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+
+.standalone-app .betterlearn-library[data-presentation='desktop'] .betterlearn-library__cover small {
+  font: 400 10px/1.3 -apple-system, BlinkMacSystemFont, 'PingFang SC', sans-serif;
+  letter-spacing: .04em;
+  opacity: .9;
+}
+
+.standalone-app .betterlearn-library[data-presentation='desktop'] .betterlearn-library__book-copy {
+  align-content: start;
+  gap: 7px;
+  min-width: 0;
+}
+
+.standalone-app .betterlearn-library[data-presentation='desktop'] .betterlearn-library__book-copy > strong {
+  display: -webkit-box;
+  overflow: hidden;
+  color: #343831;
+  font: 500 13px/1.5 -apple-system, BlinkMacSystemFont, 'PingFang SC', sans-serif;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.standalone-app .betterlearn-library[data-presentation='desktop'] .betterlearn-library__book-copy > small {
+  color: #73786e;
+  font: 400 11px/1.4 -apple-system, BlinkMacSystemFont, 'PingFang SC', sans-serif;
+}
+
+.standalone-app .betterlearn-library[data-presentation='desktop'] .betterlearn-library__progress {
+  display: block;
+  height: 2px;
+  margin-top: 2px;
+  border-radius: 1px;
+  background: #e2e4dd;
+  overflow: hidden;
+}
+
+.standalone-app .betterlearn-library[data-presentation='desktop'] .betterlearn-library__progress > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #7a8871;
+}
+
+.standalone-app .betterlearn-library[data-presentation='desktop'] .betterlearn-library__book-actions {
+  justify-content: start;
+  gap: 7px;
+  padding: 0;
+}
+
+.standalone-app .betterlearn-library[data-presentation='desktop'] .betterlearn-library__book-actions button,
+.standalone-app .betterlearn-library[data-presentation='desktop'] .betterlearn-library__delete-confirm button {
+  padding: 4px 10px;
+  border-color: #d8d9d3;
+  border-radius: 5px;
+  color: #53584d;
+  background: #fff;
+  font-size: 11px;
+  font-weight: 400;
+}
+
+.standalone-app .betterlearn-library[data-presentation='desktop'] .betterlearn-library__book-actions button:last-child,
+.standalone-app .betterlearn-library[data-presentation='desktop'] .betterlearn-library__delete-confirm button:last-child {
+  color: #a43d32;
+}
+
+.standalone-app .betterlearn-library[data-presentation='desktop'] .betterlearn-library__delete-confirm {
+  box-sizing: border-box;
+  width: 100%;
+  margin: 0;
+  padding: 10px;
+  border: 1px solid #e4d7d0;
+  border-radius: 6px;
+  background: #faf6f3;
+}
+
+.standalone-app .betterlearn-library[data-presentation='desktop'] .betterlearn-library__delete-confirm > strong { font-size: 12px; font-weight: 500; }
+.standalone-app .betterlearn-library[data-presentation='desktop'] .betterlearn-library__delete-confirm > span { color: #77736d; font-size: 11px; }
+.standalone-app .betterlearn-library[data-presentation='desktop'] .betterlearn-library__delete-confirm > div { flex-wrap: wrap; justify-content: start; }
+
+.standalone-app .betterlearn-library[data-presentation='desktop'] .betterlearn-library__empty {
+  min-height: 320px;
+  align-content: center;
+  justify-items: center;
+  gap: 11px;
+  padding: 30px 12px 60px;
+  border: 0;
+  border-radius: 0;
+  text-align: center;
+  background: transparent;
+  box-shadow: none;
+}
+
+.standalone-app .betterlearn-library[data-presentation='desktop'] .betterlearn-library__empty > svg {
+  margin-bottom: 6px;
+  color: #9b9f94;
+}
+
+.standalone-app .betterlearn-library[data-presentation='desktop'] .betterlearn-library__empty h2 {
+  color: #555b4e;
+  font: 500 16px/1.4 -apple-system, BlinkMacSystemFont, 'PingFang SC', sans-serif;
+}
+
+.standalone-app .betterlearn-library[data-presentation='desktop'] .betterlearn-library__empty p {
+  max-width: 27em;
+  color: #73786e;
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.standalone-app .betterlearn-library[data-presentation='desktop'] button:focus-visible {
+  outline: 2px solid #7a8871;
+  outline-offset: 5px;
+}
+
+@container bookshelf (max-width: 370px) {
+  .standalone-app .betterlearn-library[data-presentation='desktop'] .betterlearn-library__heading {
+    align-items: start;
+    flex-wrap: wrap;
+    gap: 14px;
+    margin-bottom: 28px;
+  }
+
+  .standalone-app .betterlearn-library[data-presentation='desktop'] .betterlearn-library__shelf {
+    column-gap: 24px;
+  }
+}
+
+@container bookshelf (min-width: 280px) and (max-width: 313px) {
+  .standalone-app .betterlearn-library[data-presentation='desktop'] .betterlearn-library__shelf {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 18px;
+  }
+
+  .standalone-app .betterlearn-library[data-presentation='desktop'] .betterlearn-library__book,
+  .standalone-app .betterlearn-library[data-presentation='desktop'] .betterlearn-library__cover {
+    width: 100%;
+  }
+
+  .standalone-app .betterlearn-library[data-presentation='desktop'] .betterlearn-library__cover {
+    aspect-ratio: 145 / 194;
+    height: auto;
+    min-height: 0;
+    padding: 14px;
+  }
+
+  .standalone-app .betterlearn-library[data-presentation='desktop'] .betterlearn-library__cover b {
+    font-size: 16px;
+  }
+}
+
+@container bookshelf (max-width: 279px) {
+  .standalone-app .betterlearn-library[data-presentation='desktop'] .betterlearn-library__shelf {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .standalone-app .betterlearn-library[data-presentation='desktop'] .betterlearn-library__cover {
+    transition: none;
+  }
+}

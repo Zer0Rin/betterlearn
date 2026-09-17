@@ -17,10 +17,10 @@ const texts = (node: { children?: unknown }): string[] =>
 const text = (renderer: ReactTestRenderer) => texts(renderer.root.findAllByType('h1')[0]).join('')
 const tags = (renderer: ReactTestRenderer) => renderer.root.findAll(n => typeof n.props.className === 'string' && /zl-tag|zl-xp-badge/.test(n.props.className)).map(n => texts(n).join(''))
 
-it('shows the five-tier heading by accuracy', () => {
-  expect(text(render([record('q1', true), record('q2', true)]))).toBe('🎉 满分通关，太厉害了！')
-  expect(text(render([record('q1', true), record('q2', false)]))).toBe('📚 有进步空间，加油！')
-  expect(text(render([record('q1', false), record('q2', false)]))).toBe('🌱 别灰心，下次会更好！')
+it('shows the measured accuracy in the heading', () => {
+  expect(text(render([record('q1', true), record('q2', true)]))).toBe('正确率 100%')
+  expect(text(render([record('q1', true), record('q2', false)]))).toBe('正确率 50%')
+  expect(text(render([record('q1', false), record('q2', false)]))).toBe('正确率 0%')
 })
 
 it('shows the correct/wrong tags and the XP gained using the backend rule', () => {

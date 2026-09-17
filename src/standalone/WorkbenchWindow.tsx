@@ -88,7 +88,6 @@ export function WorkbenchWindow({ children, storage, title }: {children:ReactNod
     setManual(next);writeWindowSize(storage,next)
   }
   return <div className="workbench-desktop">
-    <div className="workbench-backdrop" aria-hidden="true"><span>BetterLearn</span><p>给知识，一个安静的空间。</p></div>
     <button ref={launcher} className="workbench-launcher" type="button" hidden={!collapsed}
       aria-label="打开 BetterLearn" aria-expanded={!collapsed} aria-controls="betterlearn-workbench"
       onClick={()=>{focusPending.current=true;setCollapsed(false)}}><BookOpen size={20}/><span>BetterLearn</span></button>
@@ -96,7 +95,7 @@ export function WorkbenchWindow({ children, storage, title }: {children:ReactNod
       data-testid="workbench-window" data-maximized={maximized} data-resizing={resizing} hidden={collapsed}
       style={{width:size.width,height:size.height}} aria-label="BetterLearn 工作台">
       <header className="workbench-titlebar">
-        <div className="workbench-title"><BookOpen size={17}/><strong>BetterLearn</strong><span>{title}</span></div>
+        <div className="workbench-title" title={title}><BookOpen size={16} strokeWidth={1.5}/><strong>BetterLearn</strong></div>
         <div className="workbench-window-actions">
           <button type="button" aria-label="收起工作台" title="收起工作台" onClick={collapse}><Minus size={16}/></button>
           <button type="button" aria-label={maximized?'还原工作台':'最大化工作台'} title={maximized?'还原工作台':'最大化工作台'}

@@ -57,7 +57,7 @@ export function Settings({ fetcher = globalThis.fetch, onSaved }: { fetcher?: ty
     finally { setBusy(false) }
   }
   return <section className="standalone-settings" aria-label="模型与能力设置">
-    <header className="standalone-page-heading"><p>连接你的学习工具</p><h1>模型与能力设置</h1><span>密钥保存在本机，页面只显示配置状态。保存不会调用模型。</span></header>
+    <header className="standalone-page-heading"><h1>模型与能力设置</h1><span>密钥保存在本机，页面只显示配置状态。保存不会调用模型。</span></header>
     {error && <p role="alert">{error}<button type="button" onClick={() => setRevision(n=>n+1)}>重新加载设置</button></p>}
     {!settings ? <p role="status">正在读取设置…</p> : <form onSubmit={submit}>
       <fieldset disabled={busy} className="standalone-settings-fields">

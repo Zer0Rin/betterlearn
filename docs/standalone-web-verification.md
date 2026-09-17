@@ -77,3 +77,15 @@
 - 浏览器未出现应用错误；控制台包含 React 开发提示和现有设置表单的浏览器建议。浏览器跨引擎（Safari/Firefox）及真实供应商未在本轮验收。
 
 截图：`output/playwright/glass-library-wide.png`、`glass-settings-narrow.png`、`glass-library-small.png`、`glass-review-mobile.png`、`glass-learning-mobile.png`、`glass-quiz-mobile.png`、`glass-report-mobile.png`、`glass-history-mobile.png`、`glass-minimum-window.png`。截图留在本机，不包含真实密钥。
+
+
+## 桌面阅读布局修订（2026-09-17）
+
+用户指出首版玻璃界面仍有明显模板感。本次调整信息结构：移除重复品牌、面包屑、英文装饰标题和营销口号，采用紧凑分组导航、白色工作区、中性半透明窗口；书架使用真实书名竖版封面，保留知识点数量、完成进度与掌握度。学习书新增 `presentation="desktop"` 展示分支，旧插件展示仍走默认分支，共享编辑、删除和保存行为。
+
+- 全量 Web / 通用业务测试：47 文件、484 项通过；构建与安装包重新生成通过。
+- 浏览器检查空书架、四本书展示、练习、设置和提取页面；375px 视口七个导航页面主区域均无横向溢出。
+- 浏览器验证管理 → 编辑 → 收起/恢复草稿 → 取消；删除确认 → 取消；新建学习书 → 知识提取。窗口逻辑未改动，原 5 项窗口行为回归通过。
+- 视觉审查修正封面标题末行孤字、次要文字对比度、练习输入框边界、书籍无障碍名称，以及小屏两列布局。新版书目仍展示掌握度。
+- 截图 `output/playwright/reading-library-wide.png`、`reading-library-mobile.png` 的四本书是临时视觉验收样本（无实际学习进度），仅写入新建 `/tmp/betterlearn-glass-*` 目录，不属于用户真实书库。空态见 `reading-library-empty.png`，练习和设置分别为 `reading-practice-wide.png`、`reading-settings-wide.png`。
+- 本轮没有新增真实模型效果或跨浏览器验收。
