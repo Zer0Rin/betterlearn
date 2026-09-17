@@ -48,8 +48,14 @@ function dependencies(options: { startError?: Error } = {}) {
     characterCount: 31,
   }
   const conversationSource = { read: vi.fn(async () => ({ ...conversationDocument })) }
+  const knowledgeBaseSource = {
+    list: vi.fn(async () => []),
+    read: vi.fn(async () => ({ text: '', filename: '', contentDigest: '', byteSize: 0 })),
+  }
   const deps: ProductPluginDependencies = {
     packageRoot: '/owned/package',
+    createQuizService: vi.fn(() => undefined),
+    registerQuizRoutes: vi.fn(() => vi.fn()),
     loadContract: vi.fn(() => ({
       schema: { type: 'object' }, schemaVersion: 1, schemaSha256: 'a'.repeat(64), validate: () => [],
     })),
@@ -57,13 +63,14 @@ function dependencies(options: { startError?: Error } = {}) {
     createAdapter: vi.fn(() => ({}) as never),
     createModelSelectionResolver: vi.fn(() => resolver as never),
     createConversationSource: vi.fn(() => conversationSource as never),
+    createKnowledgeBaseSource: vi.fn(() => knowledgeBaseSource as never),
     createCoordinator: vi.fn(() => coordinator as never),
     registerRoutes: vi.fn(() => {
       order.push('routes:register')
       return () => { order.push('routes:dispose') }
     }),
   }
-  return { deps, order, supervisor, coordinator, resolver, conversationSource, conversationDocument }
+  return { deps, order, supervisor, coordinator, resolver, conversationSource, conversationDocument, knowledgeBaseSource }
 }
 
 describe('phase1c product plugin', () => {
@@ -113,6 +120,7 @@ describe('phase1c product plugin', () => {
     expect(order).toEqual(['routes:register', 'supervisor:start'])
     expect(deps.createModelSelectionResolver).toHaveBeenCalledWith(ctx)
     expect(deps.createConversationSource).toHaveBeenCalledWith(sessionQuery)
+    expect(deps.createKnowledgeBaseSource).toHaveBeenCalledWith(config)
     expect(deps.createCoordinator).toHaveBeenCalledWith(
       supervisor, expect.anything(), resolver,
     )
@@ -205,4 +213,18 @@ describe('phase1c product plugin', () => {
       'routes:dispose', 'coordinator:dispose', 'supervisor:dispose',
     ])
   })
+})
+
+test('manages the embedded quiz service and supplies it to knowledge extraction',async()=>{
+ const {deps}=dependencies()
+ const quiz={start:vi.fn(async()=>{}),session:vi.fn(async()=>({user:{id:1}})),request:vi.fn(),dispose:vi.fn(async()=>{})}
+ const unregister=vi.fn()
+ Object.assign(deps,{createQuizService:vi.fn(()=>quiz),registerQuizRoutes:vi.fn(()=>unregister)})
+ const options={...config,quizPythonExecutable:'/owned/quiz/python',quizEnvFile:'/owned/quiz.env',quizDataRoot:'/owned/quiz-data'}
+ const dispose=await applyProductPlugin({subprocess:{}} as never,options,deps)
+ expect(deps.createKnowledgeBaseSource).toHaveBeenCalledWith(options,quiz)
+ expect(quiz.start).toHaveBeenCalledTimes(1)
+ await dispose()
+ expect(unregister).toHaveBeenCalledTimes(1)
+ expect(quiz.dispose).toHaveBeenCalledTimes(1)
 })

@@ -52,6 +52,7 @@ export interface WorkspaceController {
   openRun(runId: string): void
   importText(input: ImportTextInput): Promise<boolean>
   importDshConversations(input: { sessionIds: string[]; expectedDigest: string }): Promise<boolean>
+  importKnowledgeBase(input: { docIds: string[]; expectedDigest: string }): Promise<boolean>
   retry(): Promise<void>
   reload(): Promise<void>
   selectCandidate(candidateId: string): void
@@ -302,7 +303,8 @@ export function useNobeiWorkspace(options: ModelSelectionInput & {
 
   const adoptImport = useCallback(async (
     pending: Promise<ImportLaunch>,
-    rethrowConversationChange = false,
+    /** 提交前内容发生变化时抛回给调用方（预览界面据此提示重新预览），而不是当成普通失败。 */
+    rethrowCodes: readonly string[] = [],
   ): Promise<boolean> => {
     commandBusy.current = true
     setBusy(true)
@@ -323,9 +325,7 @@ export function useNobeiWorkspace(options: ModelSelectionInput & {
       startPoll(launch.runId, 0)
       return true
     } catch (error) {
-      if (rethrowConversationChange
-        && error instanceof ProductApiError
-        && error.code === 'DSH_CONVERSATION_CHANGED') throw error
+      if (error instanceof ProductApiError && rethrowCodes.includes(error.code)) throw error
       if (mounted.current) setFailure(error)
       return false
     } finally {
@@ -366,7 +366,7 @@ export function useNobeiWorkspace(options: ModelSelectionInput & {
     expectedDigest: string
   }): Promise<boolean> => {
     const existing = pendingImports.get(sessionId)
-    if (existing !== undefined) return adoptImport(existing, true)
+    if (existing !== undefined) return adoptImport(existing, ['DSH_CONVERSATION_CHANGED'])
     if (commandBusy.current) return false
     try {
       const selection = resolveImportModelSelection()
@@ -378,9 +378,34 @@ export function useNobeiWorkspace(options: ModelSelectionInput & {
         modelSelection: selected,
       }, controller.signal)
       pendingImports.set(sessionId, pending)
-      return adoptImport(pending, true)
+      return adoptImport(pending, ['DSH_CONVERSATION_CHANGED'])
     } catch (error) {
       if (error instanceof ProductApiError && error.code === 'DSH_CONVERSATION_CHANGED') throw error
+      setFailure(error)
+      return false
+    }
+  }, [adoptImport, api, resolveImportModelSelection, sessionId, setFailure])
+
+  const importKnowledgeBase = useCallback(async (input: {
+    docIds: string[]
+    expectedDigest: string
+  }): Promise<boolean> => {
+    const existing = pendingImports.get(sessionId)
+    if (existing !== undefined) return adoptImport(existing, ['KNOWLEDGE_BASE_CHANGED'])
+    if (commandBusy.current) return false
+    try {
+      const selection = resolveImportModelSelection()
+      const selected = selection instanceof Promise ? await selection : selection
+      const controller = new AbortController()
+      const pending = api.importKnowledgeBase({
+        docIds: [...input.docIds],
+        expectedDigest: input.expectedDigest,
+        modelSelection: selected,
+      }, controller.signal)
+      pendingImports.set(sessionId, pending)
+      return adoptImport(pending, ['KNOWLEDGE_BASE_CHANGED'])
+    } catch (error) {
+      if (error instanceof ProductApiError && error.code === 'KNOWLEDGE_BASE_CHANGED') throw error
       setFailure(error)
       return false
     }
@@ -632,7 +657,8 @@ export function useNobeiWorkspace(options: ModelSelectionInput & {
   return {
     currentRunId, screen, run, progress, events, candidates, knowledgePoints, busy, activeCandidateId,
     submittingCandidateId, serviceUnavailable, message, modelSelection,
-    modelDirectoryStatus, ordinarySession, openRun, importText, importDshConversations, retry, reload,
+    modelDirectoryStatus, ordinarySession, openRun, importText, importDshConversations,
+    importKnowledgeBase, retry, reload,
     selectCandidate: setActiveCandidateId, review, updateKnowledgePoint, deleteRun, reset,
   }
 }

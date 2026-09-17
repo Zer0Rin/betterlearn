@@ -86,6 +86,9 @@ export function NobeiWorkspace({
           error={operationError} onSubmit={workspace.importText} previewDocument={api.previewDocument}
           conversations={conversations} previewDshConversations={api.previewDshConversations}
           onSubmitDsh={workspace.importDshConversations}
+          listKnowledgeBaseDocuments={api.listKnowledgeBaseDocuments}
+          previewKnowledgeBase={api.previewKnowledgeBase}
+          onSubmitKnowledgeBase={workspace.importKnowledgeBase}
           modelSelection={workspace.modelSelection} modelStatus={workspace.modelDirectoryStatus}
           ordinarySession={workspace.ordinarySession} />}
         {workspace.screen === 'processing' && <RunProgress run={workspace.run} progress={workspace.progress} busy={workspace.busy}

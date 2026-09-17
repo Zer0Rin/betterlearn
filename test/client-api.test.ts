@@ -62,6 +62,53 @@ describe('phase1d Client API', () => {
       signal: controller.signal,
     })
   })
+  test('maps knowledge base listing, preview and import to exact same-origin requests', async () => {
+    const fetchMock = vi.fn(async () => success({}))
+    vi.stubGlobal('fetch', fetchMock)
+    const api = createClientApi()
+    const controller = new AbortController()
+    const docIds = ['doc_alpha', 'doc_beta']
+
+    await api.listKnowledgeBaseDocuments(controller.signal)
+    expect(fetchMock).toHaveBeenLastCalledWith('/nobei/v1/knowledge-base/documents', {
+      method: 'GET',
+      headers: {},
+      signal: controller.signal,
+    })
+
+    await api.previewKnowledgeBase(docIds, controller.signal)
+    expect(fetchMock).toHaveBeenLastCalledWith('/nobei/v1/knowledge-base/preview', {
+      method: 'POST',
+      body: JSON.stringify({ docIds }),
+      headers: { 'content-type': 'application/json' },
+      signal: controller.signal,
+    })
+
+    const input = {
+      docIds,
+      expectedDigest: 'b'.repeat(64),
+      modelSelection: { provider: 'provider-a', model: 'model-a', reasoningEffort: 'high' },
+    }
+    await api.importKnowledgeBase(input, controller.signal)
+    expect(fetchMock).toHaveBeenLastCalledWith('/nobei/v1/knowledge-base/imports', {
+      method: 'POST',
+      body: JSON.stringify(input),
+      headers: { 'content-type': 'application/json' },
+      signal: controller.signal,
+    })
+  })
+
+  test('surfaces a stale knowledge base selection as a change conflict', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => failure(409, 'KNOWLEDGE_BASE_CHANGED')))
+    const api = createClientApi()
+
+    await expect(api.importKnowledgeBase({
+      docIds: ['doc_alpha'],
+      expectedDigest: 'b'.repeat(64),
+      modelSelection: { provider: 'provider-a', model: 'model-a', reasoningEffort: 'high' },
+    })).rejects.toMatchObject({ code: 'KNOWLEDGE_BASE_CHANGED' })
+  })
+
   test('listens to SSE hints and silently closes on disconnect', () => {
     const stream = { addEventListener: vi.fn(), close: vi.fn(), onerror: null as null | (() => void) }
     const EventSource = vi.fn(function () { return stream })

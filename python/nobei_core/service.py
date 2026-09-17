@@ -75,11 +75,13 @@ from nobei_core.repository import (
 
 
 _DSH_CONVERSATION_MEDIA_TYPE = "application/vnd.betterlearn.dsh-conversation+markdown"
+_KNOWLEDGE_BASE_MEDIA_TYPE = "application/vnd.betterlearn.knowledge-base+markdown"
 _SUPPORTED_MEDIA_TYPES = frozenset({
     "text/plain",
     "text/markdown",
     "application/pdf",
     _DSH_CONVERSATION_MEDIA_TYPE,
+    _KNOWLEDGE_BASE_MEDIA_TYPE,
 })
 _EVENT_PAGE_LIMIT = 200
 _PROMPT_VERSION = "l1-v3"
@@ -1074,6 +1076,8 @@ class Phase1Core:
                 "sourceType": (
                     "dsh_conversation"
                     if row["media_type"] == _DSH_CONVERSATION_MEDIA_TYPE
+                    else "knowledge_base"
+                    if row["media_type"] == _KNOWLEDGE_BASE_MEDIA_TYPE
                     else "document"
                 ),
                 "sourceLabel": row["filename"],

@@ -1,18 +1,22 @@
 # BetterLearn for DSH
 
-BetterLearn for DSH 是运行在 [DeepSeek Harness（DSH）](https://github.com/deepseek-ai/DeepSeek-Harness) WebUI 中的本地知识提取插件。选择 DSH 历史对话或导入一段资料后，BetterLearn 会生成知识点候选、逐字定位来源证据，再由你决定接受、修改或拒绝。
+BetterLearn for DSH 是运行在 [DeepSeek Harness（DSH）](https://github.com/deepseek-ai/DeepSeek-Harness) WebUI 中的本地知识提取插件。选择 DSH 历史对话、导入资料或读取内置知识库后，BetterLearn 会生成知识点候选、逐字定位来源证据，再由你决定接受、修改或拒绝。现已将本地改造的鱼皮 AI 闯关学习项目迁入本仓库，提供知识库管理、AI 出题、答题、复盘和练习历史。
 
-它使用 DSH 当前选择的模型完成生成，以常驻 Python Core 和独立 SQLite 保存业务数据。没有独立应用，也不读取或迁移旧 Nobei 数据。
+知识提取使用 DSH 当前选择的模型，业务数据由 Python Core 和 SQLite 保存。新增练习服务由同一个 Host 管理，保留独立的模型配置、MySQL 和 Chroma，浏览器仍只使用 BetterLearn 界面。构建、安装和运行不再依赖原 yu-ai-learn 目录，也不自动迁移旧 Nobei 或原教程数据。详见[题库集成与数据迁移](docs/quiz-integration.md)。
 
 ## 当前阶段版本
 
-BetterLearn 已完成从“资料提取”到“持续学习”的第一版闭环。产品现在提供两个主要入口：在“知识点”中提取和整理内容，在“学习空间”中通过学习书进入具体学习。
+BetterLearn 已完成从“资料提取”到“持续学习”的第一版闭环。产品提供“知识点”“学习空间”“我的知识库”和“开始练习”入口。知识库文档既能进入原有知识提取和学习书流程，也能直接作为 RAG 出题来源。
 
 当前阶段已经支持：默认全选审核通过的知识点并整理为新学习书；从学习书继续学习并保存课程进度、答题记录和掌握度；在管理模式中修改或删除学习书。尚未开始的学习书可直接修改，已经开始学习的书会保存为新版本，以保留原书和原进度。删除操作需要二次确认，并同时清理对应课程、答题记录和掌握度。
 
-该阶段仍使用包版本 `0.0.5`，作为阶段性完成记录，不代表正式稳定版发布。当前仓库全量验证结果为 TypeScript 790 项、Python 393 项通过。
+该阶段仍使用包版本 `0.0.5`，作为阶段性完成记录，不代表正式稳定版发布。本次迁入验证为 TypeScript/React 890 项、原 Core Python 393 项、练习服务 Python 173 项通过；具体真实服务验收和配置限制见[迁入验收记录](docs/yu-ai-integration-verification.md)。
 
 ## 它能做什么
+
+- 上传和管理 PDF、DOCX、Markdown、TXT 知识库，读取连续正文并接入知识点提取；
+- 按主题、文本、网址或知识库文档生成单选、多选、判断题，支持难度、题数及可选配图；
+- 在同一界面作答、查看解析和 AI 复盘，保存练习历史与经验值；
 
 - 选择一个或多个普通 DSH 历史对话，合并为一次知识点提取任务；
 - 导入 TXT、Markdown、有文字层的 PDF，或直接粘贴文本；

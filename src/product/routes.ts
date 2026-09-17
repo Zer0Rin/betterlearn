@@ -6,6 +6,7 @@ import { CoreRpcError } from './core-rpc-client.js'
 import { GenerationBusyError, type GenerationLaunch } from './generation-coordinator.js'
 import { ModelSelectionResolutionError } from './model-selection-resolver.js'
 import { DshConversationSourceError } from './dsh-conversation-source.js'
+import { KnowledgeBaseSourceError } from './knowledge-base-source.js'
 import {
   authorizeProductRequest,
   parseProductJsonBody,
@@ -17,6 +18,9 @@ import type {
   DocumentPreviewParams,
   DshConversationImportParams,
   DshConversationPreview,
+  KnowledgeBaseDocumentList,
+  KnowledgeBaseImportParams,
+  KnowledgeBasePreview,
   CandidateList,
   CoreObjectResult,
   CoreRunSnapshot,
@@ -40,6 +44,9 @@ import type {
 export interface ProductOperations {
   previewDocument(params: DocumentPreviewParams, signal?: AbortSignal): Promise<DocumentPreview>
   previewDshConversations(sessionIds: string[], signal?: AbortSignal): Promise<DshConversationPreview>
+  listKnowledgeBaseDocuments(signal?: AbortSignal): Promise<KnowledgeBaseDocumentList>
+  previewKnowledgeBase(docIds: string[], signal?: AbortSignal): Promise<KnowledgeBasePreview>
+  importKnowledgeBase(params: KnowledgeBaseImportParams, signal?: AbortSignal): Promise<GenerationLaunch>
   watchRun(runId: string, onChange: (progress?: GenerationProgress) => void): () => void
   getProgress(runId: string): GenerationProgress | null
   launchImport(params: ImportAndPrepareParams, signal?: AbortSignal): Promise<GenerationLaunch>
@@ -68,6 +75,9 @@ type RouteMatch =
   | { kind: 'import'; method: 'POST' }
   | { kind: 'dsh-preview'; method: 'POST' }
   | { kind: 'dsh-import'; method: 'POST' }
+  | { kind: 'knowledge-base-documents'; method: 'GET' }
+  | { kind: 'knowledge-base-preview'; method: 'POST' }
+  | { kind: 'knowledge-base-import'; method: 'POST' }
   | { kind: 'stream'; method: 'GET'; runId: string }
   | { kind: 'progress'; method: 'GET'; runId: string }
   | { kind: 'runs'; method: 'GET' }
@@ -104,6 +114,15 @@ function matchRoute(url: URL, requestMethod?: string): RouteMatch | undefined {
   if (url.pathname === '/nobei/v1/imports' && url.search === '') return { kind: 'import', method: 'POST' }
   if (url.pathname === '/nobei/v1/dsh-conversations/preview' && url.search === '') return { kind: 'dsh-preview', method: 'POST' }
   if (url.pathname === '/nobei/v1/dsh-conversations/imports' && url.search === '') return { kind: 'dsh-import', method: 'POST' }
+  if (url.pathname === '/nobei/v1/knowledge-base/documents' && url.search === '') {
+    return { kind: 'knowledge-base-documents', method: 'GET' }
+  }
+  if (url.pathname === '/nobei/v1/knowledge-base/preview' && url.search === '') {
+    return { kind: 'knowledge-base-preview', method: 'POST' }
+  }
+  if (url.pathname === '/nobei/v1/knowledge-base/imports' && url.search === '') {
+    return { kind: 'knowledge-base-import', method: 'POST' }
+  }
   if (url.pathname === '/nobei/v1/runs' && url.search === '') return { kind: 'runs', method: 'GET' }
   if (url.pathname === '/nobei/v1/learning-courses' && url.search === '') {
     return { kind: 'learning-course-sync', method: 'POST' }
@@ -274,6 +293,32 @@ function parseDshImport(value: unknown): DshConversationImportParams | undefined
   }
 }
 
+function parseKnowledgeBaseSelection(value: unknown): string[] | undefined {
+  if (!exactObject(value, ['docIds'])) return undefined
+  const docIds = value.docIds
+  if (
+    !Array.isArray(docIds)
+    || docIds.length < 1
+    || docIds.length > 50
+    || !docIds.every(docId => typeof docId === 'string' && /^doc_[0-9a-zA-Z-]{1,64}$/.test(docId))
+    || new Set(docIds).size !== docIds.length
+  ) return undefined
+  return [...docIds] as string[]
+}
+
+function parseKnowledgeBaseImport(value: unknown): KnowledgeBaseImportParams | undefined {
+  if (!exactObject(value, ['docIds', 'expectedDigest', 'modelSelection'])) return undefined
+  const docIds = parseKnowledgeBaseSelection({ docIds: value.docIds })
+  const selection = parseModelSelection(value.modelSelection)
+  if (
+    !docIds
+    || typeof value.expectedDigest !== 'string'
+    || !/^[0-9a-f]{64}$/.test(value.expectedDigest)
+    || !selection
+  ) return undefined
+  return { docIds, expectedDigest: value.expectedDigest, modelSelection: selection }
+}
+
 function parsePreview(value: unknown): DocumentPreviewParams | undefined {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) return undefined
   const input = value as Record<string, unknown>
@@ -285,7 +330,8 @@ function parsePreview(value: unknown): DocumentPreviewParams | undefined {
     && contentBase64.length <= 4 * Math.ceil(5 * 1024 * 1024 / 3)) return { filename, mediaType, contentBase64 }
   if (exactObject(input, ['filename', 'mediaType', 'text'])
     && (mediaType === 'text/plain' || mediaType === 'text/markdown' || mediaType === 'application/pdf'
-      || mediaType === 'application/vnd.betterlearn.dsh-conversation+markdown')
+      || mediaType === 'application/vnd.betterlearn.dsh-conversation+markdown'
+      || mediaType === 'application/vnd.betterlearn.knowledge-base+markdown')
     && typeof text === 'string' && text.length > 0 && Buffer.byteLength(text, 'utf8') <= 512 * 1024) return { filename, mediaType, text }
   return undefined
 }
@@ -406,6 +452,12 @@ export function registerProductRoutes(
       const importParams = route.kind === 'import' ? parseImport(body) : undefined
       const dshPreviewParams = route.kind === 'dsh-preview' ? parseDshSelection(body) : undefined
       const dshImportParams = route.kind === 'dsh-import' ? parseDshImport(body) : undefined
+      const knowledgeBaseSelection = route.kind === 'knowledge-base-preview'
+        ? parseKnowledgeBaseSelection(body)
+        : undefined
+      const knowledgeBaseImportParams = route.kind === 'knowledge-base-import'
+        ? parseKnowledgeBaseImport(body)
+        : undefined
       const retryParams = route.kind === 'retry' ? parseRetry(body, route.runId) : undefined
       const reviewParams = route.kind === 'review' ? parseReview(body, route.candidateId) : undefined
       const updateParams = route.kind === 'knowledge-point-update'
@@ -422,6 +474,8 @@ export function registerProductRoutes(
         || (route.kind === 'import' && !importParams)
         || (route.kind === 'dsh-preview' && !dshPreviewParams)
         || (route.kind === 'dsh-import' && !dshImportParams)
+        || (route.kind === 'knowledge-base-preview' && !knowledgeBaseSelection)
+        || (route.kind === 'knowledge-base-import' && !knowledgeBaseImportParams)
         || (route.kind === 'retry' && !retryParams)
         || (route.kind === 'review' && !reviewParams)
         || (route.kind === 'knowledge-point-update' && !updateParams)
@@ -461,6 +515,9 @@ export function registerProductRoutes(
         else if (route.kind === 'import') result = await operations.launchImport(importParams as ImportAndPrepareParams)
         else if (route.kind === 'dsh-preview') result = await operations.previewDshConversations(dshPreviewParams as string[])
         else if (route.kind === 'dsh-import') result = await operations.importDshConversations(dshImportParams as DshConversationImportParams)
+        else if (route.kind === 'knowledge-base-documents') result = await operations.listKnowledgeBaseDocuments()
+        else if (route.kind === 'knowledge-base-preview') result = await operations.previewKnowledgeBase(knowledgeBaseSelection as string[])
+        else if (route.kind === 'knowledge-base-import') result = await operations.importKnowledgeBase(knowledgeBaseImportParams as KnowledgeBaseImportParams)
         else if (route.kind === 'runs') result = await operations.listRuns()
         else if (route.kind === 'run') result = await operations.getRun(route.runId)
         else if (route.kind === 'run-delete') result = await operations.deleteRun(route.runId)
@@ -477,7 +534,7 @@ export function registerProductRoutes(
           : await operations.getLearningCourse(route.courseId)
         else result = await operations.submitLearningAttempt(learningAttemptParams as LearningAttemptParams)
         if (!res.destroyed && !res.writableEnded) {
-          sendJson(res, route.kind === 'import' || route.kind === 'dsh-import' || route.kind === 'retry' ? 202 : 200, { ok: true, result })
+          sendJson(res, route.kind === 'import' || route.kind === 'dsh-import' || route.kind === 'knowledge-base-import' || route.kind === 'retry' ? 202 : 200, { ok: true, result })
         }
       } catch (error) {
         if (res.destroyed || res.writableEnded) return
@@ -489,6 +546,14 @@ export function registerProductRoutes(
           const status = error.code === 'DSH_CONVERSATION_NOT_FOUND' ? 404
             : error.code === 'DSH_CONVERSATION_READ_FAILED' ? 503
               : error.code === 'DSH_CONVERSATION_CHANGED' ? 409
+                : 400
+          return sendError(res, status, error.code)
+        }
+        if (error instanceof KnowledgeBaseSourceError) {
+          const status = error.code === 'KNOWLEDGE_BASE_DOCUMENT_NOT_FOUND' ? 404
+            : error.code === 'KNOWLEDGE_BASE_UNAVAILABLE'
+              || error.code === 'KNOWLEDGE_BASE_READ_FAILED' ? 503
+              : error.code === 'KNOWLEDGE_BASE_CHANGED' ? 409
                 : 400
           return sendError(res, status, error.code)
         }

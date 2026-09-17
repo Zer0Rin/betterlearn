@@ -9,6 +9,10 @@ import {
 import { GenerationBusyError } from '../src/product/generation-coordinator.js'
 import { ModelSelectionResolutionError } from '../src/product/model-selection-resolver.js'
 import { registerProductRoutes, type ProductOperations } from '../src/product/routes.js'
+import {
+  KNOWLEDGE_BASE_MEDIA_TYPE,
+  KnowledgeBaseSourceError,
+} from '../src/product/knowledge-base-source.js'
 import type { CoreState } from '../src/product/types.js'
 
 const runId = `job_${'a'.repeat(20)}`
@@ -39,6 +43,37 @@ const dshPreview = {
     maxCalls: 1,
   },
 }
+const knowledgeBaseDocIds = ['doc_abc123', 'doc_def456']
+const knowledgeBaseDigest = 'b'.repeat(64)
+const knowledgeBaseDocuments = [
+  {
+    docId: 'doc_abc123',
+    fileName: '操作系统笔记.md',
+    fileType: 'md',
+    fileSize: 1024,
+    status: 'ready' as const,
+    chunkCount: 12,
+    createdAt: '2026-01-01T00:00:00Z',
+  },
+]
+const knowledgeBasePreview = {
+  docIds: knowledgeBaseDocIds,
+  filename: '操作系统笔记.md 等 2 篇知识库文档.md',
+  mediaType: KNOWLEDGE_BASE_MEDIA_TYPE,
+  text: '# 操作系统笔记\n\n进程与线程',
+  contentDigest: knowledgeBaseDigest,
+  documentCount: 2,
+  characterCount: 18,
+  byteSize: 40,
+  extractionPlan: {
+    strategy: 'L1' as const,
+    blocks: [],
+    containers: [],
+    boundaries: [],
+    maxCalls: 1,
+  },
+}
+
 const servers = new Set<ReturnType<typeof createServer>>()
 
 afterEach(async () => {
@@ -51,6 +86,9 @@ function operations(override: Partial<ProductOperations> = {}): ProductOperation
   return {
     previewDocument: vi.fn(async params => ({ ...params, text: 'preview', byteSize: 7, characterCount: 7, pages: [], extractionPlan: { strategy: 'L1', blocks: [], containers: [], boundaries: [], maxCalls: 1 } })) as any,
     previewDshConversations: vi.fn(async () => dshPreview),
+    listKnowledgeBaseDocuments: vi.fn(async () => ({ documents: knowledgeBaseDocuments, configured: true })),
+    previewKnowledgeBase: vi.fn(async () => knowledgeBasePreview),
+    importKnowledgeBase: vi.fn(async () => ({ runId, attemptId: `att_${'d'.repeat(20)}`, revision: 2 })),
     watchRun: vi.fn(() => vi.fn()),
     getProgress: vi.fn(() => null),
     launchImport: vi.fn(async () => ({ runId, attemptId: `att_${'d'.repeat(20)}`, revision: 2 })),
@@ -209,11 +247,24 @@ describe('product route table', () => {
     const response = await fetch(`http://127.0.0.1:${port}/nobei/v1/runs/${runId}/stream`, { headers: { origin: `http://127.0.0.1:${port}` } })
     const reader = response.body!.getReader()
     try {
-      const first = new TextDecoder().decode((await reader.read()).value)
-      expect(first).toContain('event: run.changed')
-      expect(first).toContain(`event: run.progress\ndata: ${JSON.stringify(p)}`)
+      // HTTP chunks need not coincide with SSE frames (or contain both initial events).
+      const decoder = new TextDecoder()
+      let buffer = ''
+      async function nextFrame() {
+        while (!buffer.includes('\n\n')) {
+          const chunk = await reader.read()
+          if (chunk.done) throw new Error('SSE ended before the expected event')
+          buffer += decoder.decode(chunk.value, { stream: true })
+        }
+        const end = buffer.indexOf('\n\n')
+        const frame = buffer.slice(0, end)
+        buffer = buffer.slice(end + 2)
+        return frame
+      }
+      expect(await nextFrame()).toBe('event: run.changed\ndata: {}')
+      expect(await nextFrame()).toBe(`event: run.progress\ndata: ${JSON.stringify(p)}`)
       notify({ ...p, lastResponseAt: 3 })
-      expect(new TextDecoder().decode((await reader.read()).value)).toContain('"lastResponseAt":3')
+      expect(await nextFrame()).toContain('"lastResponseAt":3')
       expect(ops.getRun).not.toHaveBeenCalled()
       expect((await send(port, { method: 'GET', path: `/nobei/v1/runs/${runId}/progress` })).body.result).toEqual(p)
     } finally { await reader.cancel(); dispose() }
@@ -534,5 +585,136 @@ describe('DSH conversation routes', () => {
     })
     expect(wrongMethod).toMatchObject({ status: 405, body: { error: { code: 'METHOD_NOT_ALLOWED' } } })
     expect(wrongMethod.headers.allow).toBe('POST')
+  })
+})
+
+describe('knowledge base routes', () => {
+  test('lists the local knowledge base without caching', async () => {
+    const ops = operations()
+    const { port } = await listen('READY', ops)
+
+    const response = await send(port, { method: 'GET', path: '/nobei/v1/knowledge-base/documents' })
+
+    expect(response.status).toBe(200)
+    expect(response.headers['cache-control']).toBe('no-store')
+    expect(ops.listKnowledgeBaseDocuments).toHaveBeenCalledWith()
+    expect(response.body).toEqual({ ok: true, result: { documents: knowledgeBaseDocuments, configured: true } })
+  })
+
+  test('previews an exact knowledge base selection without launching an import', async () => {
+    const ops = operations()
+    const { port } = await listen('READY', ops)
+
+    const response = await send(port, {
+      method: 'POST',
+      path: '/nobei/v1/knowledge-base/preview',
+      body: JSON.stringify({ docIds: knowledgeBaseDocIds }),
+    })
+
+    expect(response.status).toBe(200)
+    expect(response.headers['cache-control']).toBe('no-store')
+    expect(ops.previewKnowledgeBase).toHaveBeenCalledWith(knowledgeBaseDocIds)
+    expect(response.body).toEqual({ ok: true, result: knowledgeBasePreview })
+    expect(ops.launchImport).not.toHaveBeenCalled()
+  })
+
+  test('imports the previewed selection with its exact digest and model selection', async () => {
+    const ops = operations()
+    const { port } = await listen('READY', ops)
+    const body = { docIds: knowledgeBaseDocIds, expectedDigest: knowledgeBaseDigest, modelSelection }
+
+    const response = await send(port, {
+      method: 'POST',
+      path: '/nobei/v1/knowledge-base/imports',
+      body: JSON.stringify(body),
+    })
+
+    expect(response.status).toBe(202)
+    expect(ops.importKnowledgeBase).toHaveBeenCalledWith(body)
+  })
+
+  test.each([
+    ['empty doc ids', '/nobei/v1/knowledge-base/preview', { docIds: [] }],
+    ['too many doc ids', '/nobei/v1/knowledge-base/preview', { docIds: Array.from({ length: 51 }, (_, index) => `doc_${index}`) }],
+    ['duplicate doc ids', '/nobei/v1/knowledge-base/preview', { docIds: ['doc_a', 'doc_a'] }],
+    ['non-string doc id', '/nobei/v1/knowledge-base/preview', { docIds: ['doc_a', 1] }],
+    ['surrogate doc id', '/nobei/v1/knowledge-base/preview', { docIds: ['\uD800'] }],
+    ['unprefixed doc id', '/nobei/v1/knowledge-base/preview', { docIds: ['abc123'] }],
+    ['path-traversal doc id', '/nobei/v1/knowledge-base/preview', { docIds: ['doc_../../etc/passwd'] }],
+    ['open preview body', '/nobei/v1/knowledge-base/preview', { docIds: ['doc_a'], extra: true }],
+    ['uppercase digest', '/nobei/v1/knowledge-base/imports', { docIds: ['doc_a'], expectedDigest: 'A'.repeat(64), modelSelection }],
+    ['short digest', '/nobei/v1/knowledge-base/imports', { docIds: ['doc_a'], expectedDigest: 'a'.repeat(63), modelSelection }],
+    ['open import body', '/nobei/v1/knowledge-base/imports', { docIds: ['doc_a'], expectedDigest: knowledgeBaseDigest, modelSelection, filename: 'forbidden.md' }],
+    ['model override', '/nobei/v1/knowledge-base/imports', { docIds: ['doc_a'], expectedDigest: knowledgeBaseDigest, modelSelection: { ...modelSelection, endpoint: 'https://invalid' } }],
+  ])('rejects %s before operations', async (_name, path, body) => {
+    const ops = operations()
+    const { port } = await listen('READY', ops)
+
+    const response = await send(port, { method: 'POST', path, body: JSON.stringify(body) })
+
+    expect(response).toMatchObject({ status: 400, body: { error: { code: 'REQUEST_INPUT_INVALID' } } })
+    expect(ops.previewKnowledgeBase).not.toHaveBeenCalled()
+    expect(ops.importKnowledgeBase).not.toHaveBeenCalled()
+  })
+
+  test.each([
+    ['KNOWLEDGE_BASE_DOCUMENT_NOT_FOUND', 404],
+    ['KNOWLEDGE_BASE_DOCUMENT_NOT_READY', 400],
+    ['KNOWLEDGE_BASE_EMPTY', 400],
+    ['KNOWLEDGE_BASE_TOO_LARGE', 400],
+    ['KNOWLEDGE_BASE_READ_FAILED', 503],
+    ['KNOWLEDGE_BASE_UNAVAILABLE', 503],
+  ] as const)('maps %s to a closed public error', async (code, status) => {
+    const ops = operations({
+      previewKnowledgeBase: vi.fn(async () => { throw new KnowledgeBaseSourceError(code) }),
+    })
+    const { port } = await listen('READY', ops)
+
+    const response = await send(port, {
+      method: 'POST', path: '/nobei/v1/knowledge-base/preview',
+      body: JSON.stringify({ docIds: ['doc_a'] }),
+    })
+
+    expect(response).toEqual(expect.objectContaining({
+      status,
+      body: { ok: false, error: { code } },
+    }))
+  })
+
+  test('returns a conflict when a document changed after preview', async () => {
+    const ops = operations({
+      importKnowledgeBase: vi.fn(async () => {
+        throw new KnowledgeBaseSourceError('KNOWLEDGE_BASE_CHANGED' as never)
+      }),
+    })
+    const { port } = await listen('READY', ops)
+
+    const response = await send(port, {
+      method: 'POST', path: '/nobei/v1/knowledge-base/imports',
+      body: JSON.stringify({ docIds: ['doc_a'], expectedDigest: knowledgeBaseDigest, modelSelection }),
+    })
+
+    expect(response).toMatchObject({
+      status: 409,
+      body: { error: { code: 'KNOWLEDGE_BASE_CHANGED' } },
+    })
+    expect(ops.launchImport).not.toHaveBeenCalled()
+  })
+
+  test('requires Core readiness and the exact methods', async () => {
+    const ops = operations()
+    const starting = await listen('STARTING', ops)
+    const unavailable = await send(starting.port, { method: 'GET', path: '/nobei/v1/knowledge-base/documents' })
+    expect(unavailable).toMatchObject({ status: 503, body: { error: { code: 'CORE_UNAVAILABLE' } } })
+    expect(ops.listKnowledgeBaseDocuments).not.toHaveBeenCalled()
+
+    const ready = await listen('READY', operations())
+    const wrongMethod = await send(ready.port, { method: 'GET', path: '/nobei/v1/knowledge-base/imports' })
+    expect(wrongMethod).toMatchObject({ status: 405, body: { error: { code: 'METHOD_NOT_ALLOWED' } } })
+    expect(wrongMethod.headers.allow).toBe('POST')
+
+    const listMethod = await send(ready.port, { method: 'POST', path: '/nobei/v1/knowledge-base/documents' })
+    expect(listMethod).toMatchObject({ status: 405, body: { error: { code: 'METHOD_NOT_ALLOWED' } } })
+    expect(listMethod.headers.allow).toBe('GET')
   })
 })

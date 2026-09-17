@@ -4,7 +4,7 @@
 
 ## 为什么使用维护 CLI
 
-`betterlearn install`在调用标准`dsh plugin --profile betterlearn add <tarball>`之外，还会创建Python 3.12虚拟环境、安装Python依赖、初始化独立SQLite和所有权标记、生成token，并保存启动所需的路径。标准`dsh plugin add`只负责profile里的包与bundle注册，单独执行它不能完成这些步骤。
+`betterlearn install`在调用标准`dsh plugin --profile betterlearn add <tarball>`之外，还会创建互相隔离的 Core 与题库 Python 3.12虚拟环境、安装各自Python依赖、初始化独立SQLite和所有权标记、生成token，并保存启动所需的路径。标准`dsh plugin add`只负责profile里的包与bundle注册，单独执行它不能完成这些步骤。
 
 CLI为DSH注册和启动设置专用`DSH_HOME`，启动时还提供Python模块路径、解释器、数据根目录和token。首次安装按下面的完整命令执行；升级也应使用`betterlearn upgrade`，以保持DSH加载包与Python Core版本一致，并保留升级前备份。不要用一条裸`dsh plugin add`或直接`dsh --profile betterlearn`替代。安装/升级完成后，通过`betterlearn start`重新启动专用profile。
 
@@ -27,13 +27,15 @@ node "$HOME/Downloads/betterlearn-release/package/bin/betterlearn.mjs" install \
 
 后文`betterlearn`表示上面`node .../bin/betterlearn.mjs`；如果通过npm安装该交付包，npm也会提供同名命令。`--dsh-version`必须与`--dsh`的实际已安装版本一致。命令不会安装另一份全局DSH，也不会修改你的默认DSH profile。
 
-以上述`--home`为例，专用DSH home为`~/.betterlearn/dsh`，profile位于其`profiles/betterlearn`。Python环境在`~/.betterlearn/venv`，SQLite数据在`data/phase1.db`，本地配置在`config.json`，备份在`backups`，交付包源码保存在`packages`，这些相对目录均以`--home`为根。自动生成所有权标记和token，不需要手工填写；配置包含私有token，请勿公开。遇到已有未知数据的目录会拒绝初始化，不会删除它。
+以上述`--home`为例，专用DSH home为`~/.betterlearn/dsh`，profile位于其`profiles/betterlearn`。Core Python环境在`~/.betterlearn/venv`，题库环境在`quiz-venv`，题库配置在权限为0600的`quiz.env`，文件和向量数据在`quiz-data`，SQLite数据在`data/phase1.db`，本地配置在`config.json`，备份在`backups`，交付包源码保存在`packages`，这些相对目录均以`--home`为根。自动生成所有权标记和token，不需要手工填写；配置包含私有token，请勿公开。遇到已有未知数据的目录会拒绝初始化，不会删除它。
+
+首次启动前，编辑`~/.betterlearn/quiz.env`，填写已准备好的MySQL数据库连接，以及所需的DeepSeek、Tavily、DashScope和COS设置。安装器不安装MySQL服务器。迁移原教程数据、模型名称和密钥的方法见[题库集成与数据迁移](quiz-integration.md)。重装和升级保留已有quiz.env；JWT密钥首次自动生成，无须手工复制登录token。
 
 ```sh
 betterlearn start --home "$HOME/.betterlearn" --port 3000
 ```
 
-前台运行，浏览器打开DSH显示的本地地址。使用DSH正常模型选择器配置你自己的provider/model；真实模型调用可能收费。按Ctrl-C停止DSH后再恢复、升级或卸载。本插件保留DSH WebUI及对话入口，但提取workflow只能返回结构化结果，不能执行其他工具。
+前台运行，浏览器打开DSH显示的本地地址。Host同时启动本机题库后端并在退出时关闭；不需要另开Vite或手工启动后端。使用DSH正常模型选择器配置你自己的provider/model；真实模型调用可能收费。按Ctrl-C停止DSH后再恢复、升级或卸载。本插件保留DSH WebUI及对话入口，但提取workflow只能返回结构化结果，不能执行其他工具。
 
 ## 专用 profile 的能力范围
 
@@ -52,7 +54,9 @@ BetterLearn新增`conversation.view`标签页，并在空会话的输入dock提�
 
 ## 备份、恢复与升级
 
-在线备份可以在DSH运行时执行，使用SQLite一致性备份接口：
+**以下backup/restore以及升级前自动备份只覆盖Core SQLite，不包含题库MySQL、上传文件、Chroma向量或COS对象。** 题库需要按[迁移说明](quiz-integration.md)单独备份。
+
+在线Core备份可以在DSH运行时执行，使用SQLite一致性备份接口：
 
 ```sh
 betterlearn backup --home "$HOME/.betterlearn" --to "$HOME/Desktop/betterlearn-backup.sqlite"
@@ -74,7 +78,7 @@ betterlearn restore --home "$HOME/.betterlearn" --from "$HOME/Desktop/betterlear
 betterlearn upgrade --home "$HOME/.betterlearn" --package /absolute/path/to/new-betterlearn.tgz
 ```
 
-升级持有Core锁，先把当前数据备份，再安装新包对应的Python依赖与DSH插件，成功后更新本机包配置。data、token和用户模型配置保持不变；失败不会删除数据，但依赖或插件安装可能已部分更新，可修复安装问题后重试。升级只支持当前产品schema内兼容版本，不自动更新DSH版本。需要撤回时可重新安装旧tarball并恢复对应备份。
+升级持有Core锁，先把当前数据备份，再安装新包对应的Core和题库Python依赖与DSH插件（旧安装会新增独立题库环境），成功后更新本机包配置。data、token和用户模型配置保持不变；失败不会删除数据，但依赖或插件安装可能已部分更新，可修复安装问题后重试。升级只支持当前产品schema内兼容版本，不自动更新DSH版本。需要撤回时可重新安装旧tarball并恢复对应备份。
 
 ```sh
 betterlearn uninstall --home "$HOME/.betterlearn"

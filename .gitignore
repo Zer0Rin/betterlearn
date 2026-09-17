@@ -10,3 +10,18 @@ acceptance/*/lib/
 acceptance/*/dist/
 evidence/
 .worktrees/
+
+# Local quiz secrets and runtime data
+.env
+.env.*
+!.env.example
+quiz.env
+quiz-data/
+quiz-venv/
+services/quiz/data/
+services/quiz/.venv/
+
+# Local verification artifacts
+.playwright-cli/
+output/playwright/
+.superpowers/sdd/yu-integration/

@@ -28,6 +28,7 @@ export type DocumentMediaType =
   | 'text/markdown'
   | 'application/pdf'
   | 'application/vnd.betterlearn.dsh-conversation+markdown'
+  | 'application/vnd.betterlearn.knowledge-base+markdown'
 
 export interface ImportTextParams {
   filename: string
@@ -74,6 +75,45 @@ export interface ModelSelectionSnapshot {
 }
 
 export interface DshConversationImportParams extends DshConversationSelectionParams {
+  expectedDigest: string
+  modelSelection: ModelSelectionSnapshot
+}
+
+export interface KnowledgeBaseSelectionParams {
+  docIds: string[]
+}
+
+/** 知识库文档元数据，由 yu-ai-learn 的 /knowledge/documents 返回。 */
+export interface KnowledgeBaseDocumentSummary {
+  docId: string
+  fileName: string
+  fileType: string
+  fileSize: number
+  status: 'processing' | 'ready' | 'failed'
+  chunkCount: number
+  errorMessage?: string
+  createdAt: string
+}
+
+export interface KnowledgeBaseDocumentList {
+  documents: KnowledgeBaseDocumentSummary[]
+  /** 宿主是否配置了知识库地址与凭证；未配置时 documents 恒为空。 */
+  configured: boolean
+}
+
+export interface KnowledgeBasePreview {
+  docIds: string[]
+  filename: string
+  mediaType: 'application/vnd.betterlearn.knowledge-base+markdown'
+  text: string
+  contentDigest: string
+  documentCount: number
+  characterCount: number
+  byteSize: number
+  extractionPlan: ExtractionPlan
+}
+
+export interface KnowledgeBaseImportParams extends KnowledgeBaseSelectionParams {
   expectedDigest: string
   modelSelection: ModelSelectionSnapshot
 }
@@ -153,7 +193,7 @@ export interface CoreRunSnapshot extends Record<string, unknown> {
 
 export interface RunHistorySummary {
   runId: OpaqueId
-  sourceType: 'document' | 'dsh_conversation'
+  sourceType: 'document' | 'dsh_conversation' | 'knowledge_base'
   sourceLabel: string
   status: string
   stage: string

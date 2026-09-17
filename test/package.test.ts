@@ -43,7 +43,7 @@ describe('phase1 external bundle package', () => {
     ]))
     expect(JSON.stringify(pkg.files)).not.toContain('acceptance/fake-provider')
     expect(JSON.stringify(pkg.files)).not.toContain('evidence/')
-    expect(JSON.stringify(pkg.files)).not.toContain('.env')
+    expect(pkg.files.filter((file: string) => file.includes('.env'))).toEqual(['services/quiz/.env.example'])
     expect(JSON.stringify(pkg.files)).not.toContain('node_modules')
     expect(JSON.stringify(pkg.exports)).not.toContain('/src/')
   })
@@ -114,4 +114,12 @@ test('ships lifecycle CLI and instructions, fake provider has no runtime rc7 dep
   expect(fake.dependencies).toBeUndefined()
   expect(fake.peerDependencies['@deepseek-ai/dsh-llm']).toBe('0.1.0-rc.7 || 0.1.0-rc.8')
   expect(fake.devDependencies['@deepseek-ai/dsh-llm']).toBe('0.1.0-rc.7')
+})
+
+
+test('ships managed quiz sources, env template, license and provenance', async () => {
+  const pkg = JSON.parse(await readFile('package.json', 'utf8'))
+  expect(pkg.files).toEqual(expect.arrayContaining(['services/quiz/app/**/*.py', 'services/quiz/run_managed.py', 'services/quiz/requirements.txt', 'services/quiz/LICENSE', 'services/quiz/.env.example', 'docs/quiz-integration.md']))
+  const patch = await readFile('cordis.patch.yml', 'utf8')
+  for (const key of ['PYTHON_EXECUTABLE', 'ENV_FILE', 'DATA_ROOT']) expect(patch).toContain('BETTERLEARN_QUIZ_' + key)
 })
