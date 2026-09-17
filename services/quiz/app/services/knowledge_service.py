@@ -166,7 +166,7 @@ async def delete_document(user_id: int, doc_id: str) -> None:
     settings = get_settings()
 
     try:
-        vector_store_service.delete_document_vectors(user_id, doc_id)
+        await asyncio.to_thread(vector_store_service.delete_document_vectors, user_id, doc_id)
     except Exception as e:
         logger.warning("kb_document_vector_delete_failed", doc_id=doc_id, error_type=type(e).__name__)
         raise KnowledgeBaseError("文档向量删除失败，请重试删除") from None

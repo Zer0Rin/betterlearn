@@ -42,6 +42,23 @@ def test_add_document_chunks_empty_list_returns_zero(persist_dir, fake_embedding
     assert count == 0
 
 
+def test_delete_all_allows_new_embedding_dimensions_without_key(persist_dir, monkeypatch):
+    old = DeterministicFakeEmbedding(size=3)
+    new = DeterministicFakeEmbedding(size=2)
+    vector_store_service.add_document_chunks(1, "old", _make_chunks(["旧文档"]), old)
+
+    def no_key():
+        raise AssertionError("Deleting stored vectors must not need an API key")
+
+    monkeypatch.setattr(vector_store_service, "get_embeddings", no_key)
+    vector_store_service.delete_document_vectors(1, "old")
+    # Retry after a later file/metadata deletion failure must remain safe.
+    vector_store_service.delete_document_vectors(1, "old")
+    assert vector_store_service.add_document_chunks(1, "new", _make_chunks(["新文档"]), new) == 1
+    results = vector_store_service.similarity_search(1, "new", "新文档", embeddings=new)
+    assert [item.page_content for item in results] == ["新文档"]
+
+
 def test_similarity_search_filters_by_doc_id(persist_dir, fake_embeddings):
     chunks_a = _make_chunks(["文档A讲的是猫", "文档A讲的是狗"])
     chunks_b = _make_chunks(["文档B讲的是汽车", "文档B讲的是飞机"])

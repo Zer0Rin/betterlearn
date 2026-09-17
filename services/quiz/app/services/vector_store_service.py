@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import threading
-from functools import lru_cache
+from functools import lru_cache, wraps
 from typing import Optional
 
 import structlog
@@ -17,6 +17,16 @@ logger = structlog.get_logger()
 
 _chroma_clients: dict[str, object] = {}
 _chroma_client_lock = threading.Lock()
+_vector_operation_lock = threading.RLock()
+
+
+def serialized_vector_operation(operation):
+    """Keep collection retirement atomic with concurrent uploads and searches."""
+    @wraps(operation)
+    def run(*args, **kwargs):
+        with _vector_operation_lock:
+            return operation(*args, **kwargs)
+    return run
 
 
 def get_chroma_client(persist_dir: str):
@@ -86,6 +96,7 @@ def get_user_vector_store(user_id: int, embeddings: Optional[Embeddings] = None)
     )
 
 
+@serialized_vector_operation
 def add_document_chunks(
     user_id: int,
     doc_id: str,
@@ -110,17 +121,30 @@ def add_document_chunks(
     return len(ids)
 
 
+@serialized_vector_operation
 def delete_document_vectors(
     user_id: int,
     doc_id: str,
     embeddings: Optional[Embeddings] = None,
 ) -> None:
     """从用户向量库中删除指定文档的所有向量"""
-    vector_store = get_user_vector_store(user_id, embeddings=embeddings)
-    vector_store.delete(where={"doc_id": doc_id})
+    from chromadb.errors import NotFoundError
+
+    client = get_chroma_client(get_settings().chroma_persist_dir)
+    name = f"kb_user_{user_id}"
+    try:
+        collection = client.get_collection(name, embedding_function=None)
+    except NotFoundError:
+        return
+    collection.delete(where={"doc_id": doc_id})
+    # Deleting records alone retains Chroma's dimensionality. Retire only the
+    # empty collection, so a later model change can establish a new dimension.
+    if collection.count() == 0:
+        client.delete_collection(name)
     logger.info("document_vectors_deleted", user_id=user_id, doc_id=doc_id)
 
 
+@serialized_vector_operation
 def similarity_search(
     user_id: int,
     doc_id: str,

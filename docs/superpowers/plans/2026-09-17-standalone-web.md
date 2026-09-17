@@ -60,7 +60,7 @@ Files: docs/standalone-web.md, docs/standalone-web-verification.md, README.md an
 - [x] Run frontend/type checks, targeted tests, full Core and quiz suites. Record actual counts and known limitations.
 - [x] Run browser acceptance against independent service with fake provider: import -> extraction -> evidence review -> book -> learning; knowledge upload -> ready -> preview/extraction; quiz -> report -> history; reload and restart.
 - [x] Validate backup/restore and standalone package without DSH modules, verify no secrets in browser responses.
-- [ ] Review full diff for correctness/security/regressions, address important findings, update docs with actual tested commands and results. Commit final implementation, do not push.
+- [x] Review full diff for correctness/security/regressions, address important findings, update docs with actual tested commands and results. Commit final implementation, do not push.
 
 ## Execution ledger
 
@@ -69,4 +69,6 @@ Files: docs/standalone-web.md, docs/standalone-web-verification.md, README.md an
 - UI: 9e799d3, browser/CAS/deletion refinements 878c2c5.
 - Runtime foundation was included in combined commit 1f47f97 due to shared index; remaining CAS/shutdown/packaging refinements follow.
 - Runtime review: both shutdown lock race and stale-tab overwrite findings resolved and re-reviewed.
-- Verification: 479 Web/TypeScript, 393 Core Python, 225 quiz Python pass. Clean source build and packaged init/start pass.
+- Verification: 479 Web/TypeScript, 393 Core Python, 226 quiz Python pass. Clean source build and packaged init/start pass.
+
+- Final diff review: empty Chroma dimension retention fixed; real-Chroma regression and independent re-review passed. Packaged archive inspected and relocated CLI smoke passed.
