@@ -9,9 +9,22 @@ export interface PublicSettings {
 }
 type Capability = keyof PublicSettings
 const labels: Record<Capability, string> = {text:'文本模型',embedding:'Embedding 模型',image:'图片模型',search:'联网检索'}
+export class RequestError extends Error {
+  constructor(readonly status: number, message: string) { super(message); this.name = 'RequestError' }
+}
 export async function requestJson<T>(fetcher: typeof fetch, url: string, init?: RequestInit): Promise<T> {
   const response = await fetcher(url, init)
-  if (!response.ok) throw new Error(`请求失败（${response.status}），请检查本地服务后重试。`)
+  if (!response.ok) {
+    let message = `请求失败（${response.status}），请检查本地服务后重试。`
+    if (response.status === 400 || response.status === 409) {
+      const detail: unknown = await response.json().catch(() => null)
+      if (detail && typeof detail === 'object' && 'message' in detail
+        && typeof detail.message === 'string' && detail.message.trim() && detail.message.length <= 500) {
+        message = detail.message
+      }
+    }
+    throw new RequestError(response.status, message)
+  }
   return response.json() as Promise<T>
 }
 export function Settings({ fetcher = globalThis.fetch, onSaved }: { fetcher?: typeof fetch; onSaved(): void | Promise<void> }) {

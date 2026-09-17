@@ -9,7 +9,7 @@ let root: ReactTestRenderer
 const response = (data: unknown) => new Response(JSON.stringify(data), {headers:{'Content-Type':'application/json'}})
 afterEach(() => { if (root) act(() => root.unmount()) })
 function fetcher(model: unknown = {provider:'local',model:'fake'}) {
-  return vi.fn(async (url: string | URL | Request) => response(String(url) === '/api/model' ? model : String(url) === '/api/library' ? {books:[]} : settings)) as unknown as typeof fetch
+  return vi.fn(async (url: string | URL | Request) => response(String(url) === '/api/model' ? model : String(url) === '/api/library' ? {books:[],revision:0} : settings)) as unknown as typeof fetch
 }
 function button(label:string) { return root.root.findAllByType('button').find(b => b.props['aria-label'] === label || b.children.join('') === label)! }
 test('opens a standalone workspace and excludes DSH import sources', async () => {
@@ -43,7 +43,7 @@ test('settings preserve existing secrets unless changed and support explicit cle
 
 test('blocks book writes after a library read failure and allows loading recovery', async () => {
   let fail=true
-  const request=vi.fn(async (url: unknown)=>String(url)==='/api/library' ? fail ? new Response('',{status:500}) : response({books:[]}) : response({provider:'local',model:'fake'}))
+  const request=vi.fn(async (url: unknown)=>String(url)==='/api/library' ? fail ? new Response('',{status:500}) : response({books:[],revision:0}) : response({provider:'local',model:'fake'}))
   await act(async()=>{root=create(<StandaloneApp storage={storage} fetcher={request as typeof fetch}/>)})
   expect(JSON.stringify(root.toJSON())).toContain('学习书加载失败')
   expect(root.root.findAllByProps({'data-testid':'learning-bookshelf'})).toHaveLength(0)
@@ -63,9 +63,9 @@ test('orders full library snapshots and retries the latest books after a failed 
     if (init?.method==='PUT') {
       writes.push(JSON.parse(String(init.body)))
       if(writes.length===1) await gate
-      return fail ? new Response('',{status:500}) : response(writes.at(-1))
+      return fail ? new Response('',{status:500}) : response({...writes.at(-1),revision:1})
     }
-    return response(String(url)==='/api/library'?{books:[]}:{provider:'local',model:'fake'})
+    return response(String(url)==='/api/library'?{books:[],revision:0}:{provider:'local',model:'fake'})
   })
   await act(async()=>{root=create(<StandaloneApp storage={storage} fetcher={request as typeof fetch}/>)})
   const point={knowledgePointId:'kp_1',documentId:'doc_1',type:'concept',title:'证据',statement:'知识需要证据。',evidence:[{seq:0,quote:'知识需要证据。',textStart:0,textEnd:7,contextBefore:'',contextAfter:''}]}
@@ -87,7 +87,7 @@ test('refreshes the model snapshot after saving settings without starting extrac
   let configured=false
   const request=vi.fn(async(url:unknown,init?:RequestInit)=>{
     if(String(url)==='/api/model') return response(configured?{provider:'local:new-connection',model:'next'}:null)
-    if(String(url)==='/api/library') return response({books:[]})
+    if(String(url)==='/api/library') return response({books:[],revision:0})
     if(init?.method==='PUT') configured=true
     return response(settings)
   })
@@ -97,4 +97,86 @@ test('refreshes the model snapshot after saving settings without starting extrac
   expect(root.root.findAllByType('button').find(b=>b.children.join('')==='配置文本模型')).toBeUndefined()
   expect(JSON.stringify(root.toJSON())).toContain('next')
   expect(request.mock.calls.every(([url])=>String(url).startsWith('/api/'))).toBe(true)
+})
+
+test('shows actionable settings validation and conflict messages as plain text', async () => {
+  const {requestJson}=await import('../src/standalone/Settings.js')
+  for(const status of [400,409]) {
+    const request=vi.fn(async()=>new Response(JSON.stringify({message:'请等待当前操作完成后再修改设置'}),{status}))
+    await expect(requestJson(request as typeof fetch,'/api/settings')).rejects.toThrow('请等待当前操作完成后再修改设置')
+  }
+  const request=vi.fn(async()=>new Response('<html>private internal failure</html>',{status:500}))
+  await expect(requestJson(request as typeof fetch,'/api/settings')).rejects.toThrow('请求失败（500）')
+})
+
+test('stops queued stale writes on library conflict and preserves local books until explicit reload', async () => {
+  const {NobeiWorkspace}=await import('../src/client/NobeiClientView.js')
+  const {LearningBookComposer,LearningBookshelf}=await import('../src/client/components/LearningLibrary.js')
+  let release!:()=>void
+  const gate=new Promise<void>(resolve=>{release=resolve})
+  const writes:Array<{expectedRevision:number}>=[]
+  const request=vi.fn(async(url:unknown,init?:RequestInit)=>{
+    if(init?.method==='PUT') {writes.push(JSON.parse(String(init.body)));await gate;return new Response(JSON.stringify({message:'学习书已在其他页面更新'}),{status:409})}
+    return response(String(url)==='/api/library'?{books:[],revision:7}:{provider:'local',model:'fake'})
+  })
+  await act(async()=>{root=create(<StandaloneApp storage={storage} fetcher={request as typeof fetch}/>)})
+  const point={knowledgePointId:'kp_1',documentId:'doc_1',type:'concept',title:'证据',statement:'知识需要证据。',evidence:[]}
+  for(const title of ['第一本','第二本']) {
+    act(()=>root.root.findByType(NobeiWorkspace).props.onOrganizeLearningBook([point],'知识需要证据。'))
+    await act(async()=>root.root.findByType(LearningBookComposer).props.onCreate({title,points:[point]}))
+  }
+  await act(async()=>release())
+  expect(writes).toEqual([{books:expect.any(Array),expectedRevision:7}])
+  expect(root.root.findByType(LearningBookshelf).props.books).toHaveLength(2)
+  expect(button('重新加载最新学习书')).toBeTruthy()
+  const confirm=vi.fn(()=>false)
+  vi.stubGlobal('window',{confirm})
+  await act(async()=>button('重新加载最新学习书').props.onClick())
+  expect(confirm).toHaveBeenCalled()
+  expect(root.root.findByType(LearningBookshelf).props.books).toHaveLength(2)
+  confirm.mockReturnValue(true)
+  await act(async()=>button('重新加载最新学习书').props.onClick())
+  expect(root.root.findByType(LearningBookshelf).props.books).toHaveLength(0)
+  vi.unstubAllGlobals()
+})
+
+test('advances expected revision between successful ordered library writes', async () => {
+  const {NobeiWorkspace}=await import('../src/client/NobeiClientView.js')
+  const {LearningBookComposer}=await import('../src/client/components/LearningLibrary.js')
+  let serverRevision=4
+  const expected:number[]=[]
+  const request=vi.fn(async(url:unknown,init?:RequestInit)=>{
+    if(init?.method==='PUT') {expected.push(JSON.parse(String(init.body)).expectedRevision);return response({revision:++serverRevision})}
+    return response(String(url)==='/api/library'?{books:[],revision:serverRevision}:{provider:'local',model:'fake'})
+  })
+  await act(async()=>{root=create(<StandaloneApp storage={storage} fetcher={request as typeof fetch}/>)})
+  const point={knowledgePointId:'kp_1',documentId:'doc_1',type:'concept',title:'证据',statement:'知识需要证据。',evidence:[]}
+  for(const title of ['第一本','第二本']) {
+    act(()=>root.root.findByType(NobeiWorkspace).props.onOrganizeLearningBook([point],'知识需要证据。'))
+    await act(async()=>root.root.findByType(LearningBookComposer).props.onCreate({title,points:[point]}))
+  }
+  expect(expected).toEqual([4,5])
+})
+
+test('deletes through the revision checked server endpoint and leaves books on conflict', async () => {
+  const {LearningBookshelf}=await import('../src/client/components/LearningLibrary.js')
+  const book={bookId:'book-1',title:'保留学习书',createdAt:new Date().toISOString(),points:[],sourceText:'',courseId:'course-1'}
+  let conflict=true
+  const request=vi.fn(async(url:unknown,init?:RequestInit)=>{
+    if(init?.method==='DELETE') return conflict ? new Response(JSON.stringify({message:'其他页面已更新'}),{status:409}) : response({books:[],revision:3})
+    return response(String(url)==='/api/library'?{books:[book],revision:2}:{provider:'local',model:'fake'})
+  })
+  await act(async()=>{root=create(<StandaloneApp storage={storage} fetcher={request as typeof fetch}/>)})
+  let failure:unknown
+  await act(async()=>{try{await root.root.findByType(LearningBookshelf).props.onDeleteBook(book)}catch(error){failure=error}})
+  expect(failure).toBeTruthy()
+  expect(root.root.findByType(LearningBookshelf).props.books).toHaveLength(1)
+  const deletion=request.mock.calls.find(([,init])=>init?.method==='DELETE')!
+  expect(deletion[0]).toBe('/api/library/books/book-1')
+  expect(JSON.parse(String(deletion[1]!.body))).toEqual({expectedRevision:2})
+  await act(async()=>root.unmount())
+  conflict=false
+  await act(async()=>{root=create(<StandaloneApp storage={storage} fetcher={request as typeof fetch}/>)})
+  await act(async()=>root.root.findByType(LearningBookshelf).props.onDeleteBook(book))
+  expect(root.root.findByType(LearningBookshelf).props.books).toHaveLength(0)
 })

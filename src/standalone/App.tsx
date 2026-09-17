@@ -10,7 +10,7 @@ import { detachedModelSelection, ModelDirectoryBridgeError, type ModelDirectoryS
 import { QuizWorkspace } from '../client/quiz/QuizWorkspace.js'
 import { createQuizApi } from '../client/quiz/services/api.js'
 import type { ClientApi, KnowledgePointSnapshot, LearningCourse } from '../client/types.js'
-import { requestJson, Settings } from './Settings.js'
+import { requestJson, RequestError, Settings } from './Settings.js'
 
 type Area = 'knowledge' | 'library' | 'quiz' | 'settings' | 'compose' | 'learning'
 type BookDraft = {points: KnowledgePointSnapshot[]; sourceText: string; editingBook?: LearningBook}
@@ -39,6 +39,10 @@ export function StandaloneApp({api, fetcher = globalThis.fetch, storage = window
   const [pendingSaves,setPendingSaves] = useState(0)
   const queue = useRef(Promise.resolve())
   const saveRevision = useRef(0)
+  const libraryRevision = useRef(0)
+  const conflicted = useRef(false)
+  const deletedBookIds = useRef(new Set<string>())
+  const [libraryConflict,setLibraryConflict] = useState(false)
   const [draft,setDraft] = useState<BookDraft>()
   const [activeBookId,setActiveBookId] = useState<string>()
   const [newBookId,setNewBookId] = useState<string>()
@@ -68,9 +72,10 @@ export function StandaloneApp({api, fetcher = globalThis.fetch, storage = window
   useEffect(()=>{
     let active = true
     setLoadError('')
-    requestJson<{books:LearningBook[]}>(fetcher,'/api/library').then(value=>{
+    requestJson<{books:LearningBook[];revision:number}>(fetcher,'/api/library').then(value=>{
       if (!active) return
-      if (!Array.isArray(value.books)) throw new Error('Invalid library')
+      if (!Array.isArray(value.books) || !Number.isSafeInteger(value.revision) || value.revision < 0) throw new Error('Invalid library')
+      libraryRevision.current = value.revision; deletedBookIds.current.clear(); conflicted.current = false; setLibraryConflict(false);setSaveError('')
       booksRef.current = value.books; setBooks(value.books); setLibraryReady(true)
     }).catch(()=>{if(active) setLoadError('学习书加载失败。请重试，避免覆盖已有书库。')})
     return ()=>{active=false}
@@ -88,9 +93,16 @@ export function StandaloneApp({api, fetcher = globalThis.fetch, storage = window
     // All snapshots are ordered; a failed write cannot prevent a later full snapshot from saving.
     queue.current = queue.current.then(async()=>{
       try {
-        await requestJson(fetcher,'/api/library',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({books:next})})
+        if (conflicted.current) return
+        const saved = await requestJson<{revision:number}>(fetcher,'/api/library',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({books:next.filter(book=>!deletedBookIds.current.has(book.bookId)),expectedRevision:libraryRevision.current})})
+        libraryRevision.current = saved.revision
         if (revision === saveRevision.current) setSaveError('')
-      } catch { setSaveError('学习书尚未保存到本机。请保持页面打开并重试保存。') }
+      } catch (error) {
+        if (error instanceof RequestError && error.status === 409) {
+          conflicted.current = true;setLibraryConflict(true)
+          setSaveError('学习书已在其他页面更新。当前修改仍保留在此页面；请核对后重新加载最新学习书。')
+        } else setSaveError('学习书尚未保存到本机。请保持页面打开并重试保存。')
+      }
       finally {setPendingSaves(n=>n-1)}
     })
   }
@@ -104,8 +116,27 @@ export function StandaloneApp({api, fetcher = globalThis.fetch, storage = window
     setNewBookId(revision.replacesBookId ? undefined : revision.book.bookId);setDraft(undefined);setArea('library')
   }
   async function deleteBook(book:LearningBook) {
-    if(book.courseId) await clientApi.deleteLearningCourse(book.courseId)
-    changeBooks(booksRef.current.filter(candidate=>candidate.bookId!==book.bookId))
+    setPendingSaves(n=>n+1)
+    const deletion = queue.current.then(async()=>{
+      try {
+        if (conflicted.current) throw new RequestError(409,'请先重新加载最新学习书。')
+        const saved = await requestJson<{books:LearningBook[];revision:number}>(fetcher,`/api/library/books/${encodeURIComponent(book.bookId)}`,{
+          method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({expectedRevision:libraryRevision.current}),
+        })
+        libraryRevision.current = saved.revision
+        deletedBookIds.current.add(book.bookId)
+        const next = booksRef.current.filter(candidate=>candidate.bookId!==book.bookId)
+        booksRef.current=next;setBooks(next)
+      } catch (error) {
+        if (error instanceof RequestError && error.status === 409) {
+          conflicted.current=true;setLibraryConflict(true)
+          setSaveError('学习书已在其他页面更新，未删除学习书或课程。请重新加载最新学习书。')
+        }
+        throw error
+      } finally {setPendingSaves(n=>n-1)}
+    })
+    queue.current=deletion.catch(()=>{})
+    return deletion
   }
   function updateCourse(course:LearningCourse) {
     changeBooks(booksRef.current.map(book=>book.bookId===course.clientBookId?updateLearningBookCourse(book,course):book))
@@ -129,7 +160,10 @@ export function StandaloneApp({api, fetcher = globalThis.fetch, storage = window
     <div className="standalone-main">
       <header className="standalone-topbar"><span>我的工作台 <b>/</b> {title}</span><span className="standalone-model">{directory.current?.model ?? '尚未配置模型'}</span></header>
       {directory.status!=='loading'&&!directory.current&&<div className="standalone-notice" role="status"><span>{modelError || '配置文本模型后，即可提取知识和生成练习。已有学习数据仍可浏览。'}</span><button type="button" onClick={()=>setArea('settings')}>配置文本模型</button></div>}
-      {saveError&&<div className="standalone-notice standalone-notice--error" role="alert">{saveError}<button type="button" disabled={pendingSaves>0} onClick={()=>persist(booksRef.current)}>重试保存学习书</button></div>}
+      {saveError&&<div className="standalone-notice standalone-notice--error" role="alert">{saveError}{libraryConflict ? <button type="button" disabled={pendingSaves>0} onClick={()=>{
+        if (!window.confirm('重新加载将放弃当前页面尚未保存的学习书修改，并读取本机最新版本。是否继续？')) return
+        setLibraryReady(false);setDraft(undefined);setActiveBookId(undefined);setArea('library');setLoadRevision(n=>n+1)
+      }}>重新加载最新学习书</button> : <button type="button" disabled={pendingSaves>0} onClick={()=>persist(booksRef.current)}>重试保存学习书</button>}</div>}
       {pendingSaves>0&&<p className="standalone-saving" role="status">正在保存学习书…</p>}
       <div className="standalone-content" data-area={area}>
         {area==='settings'&&<Settings fetcher={fetcher} onSaved={async()=>{await refreshModel()}}/>}
