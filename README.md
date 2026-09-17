@@ -1,5 +1,7 @@
 # BetterLearn
 
+[![CI](https://github.com/Zer0Rin/betterlearn-for-dsh/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Zer0Rin/betterlearn-for-dsh/actions/workflows/ci.yml)
+
 本机运行、单人使用的学习工作台。先提供独立 Web 版，后续 Electron 复用同一套界面、应用接口与数据。
 
 **现在无需安装 DSH 或 MySQL。** 浏览器页面、模型设置和启动入口均独立；知识提取与课程使用 Core SQLite，知识库与练习使用 Quiz SQLite，向量检索使用 Chroma。

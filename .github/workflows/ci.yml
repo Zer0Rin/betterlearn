@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Build and test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up pnpm and Node.js
+        uses: pnpm/setup@v1
+        with:
+          version: 11.23.0
+          runtime: node@24
+          cache: true
+
+      - name: Set up Python
+        id: setup-python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: CI=true pnpm install --frozen-lockfile
+
+      - name: Prepare Python environments
+        run: |
+          python -m venv .venv-phase1b
+          .venv-phase1b/bin/python -m pip install -r python/requirements-phase1-dev.lock
+          python -m venv services/quiz/.venv
+          services/quiz/.venv/bin/python -m pip install -r services/quiz/requirements.txt
+
+      - name: Build and run Web tests
+        run: pnpm test
+
+      - name: Run Core tests
+        run: pnpm test:core
+
+      - name: Run Quiz tests
+        run: pnpm test:quiz
