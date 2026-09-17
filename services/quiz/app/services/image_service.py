@@ -3,7 +3,7 @@
 负责：
 1. 根据题目内容构建生图 Prompt
 2. 调用阿里云百炼 qwen-image-2.0 模型同步生成图片（多题并发）
-3. 下载生成的图片并上传至腾讯云 COS，得到永久可访问 URL
+3. 下载并验证生成的图片，保存到本机目录（可选腾讯云 COS）
 4. 应用「每人每天生图次数」限额
 
 生图失败（单张或全部）不应影响出题主流程，因此本模块的对外入口
@@ -16,17 +16,17 @@ import asyncio
 import uuid
 from typing import Optional
 
-import httpx
 import structlog
 
 from app.core.config import get_settings
 from app.models.quiz import Question
 from app.repositories import image_repository
 from app.services.cos_service import upload_image_bytes
+from app.services.local_image_service import download_image, persist_image_bytes
 
 logger = structlog.get_logger()
 
-IMAGE_DOWNLOAD_TIMEOUT = 30.0
+IMAGE_GENERATION_TIMEOUT = 120.0
 
 
 def _derive_image_base_url(dashscope_base_url: str) -> str:
@@ -79,20 +79,20 @@ def _call_image_model_sync(prompt: str) -> str:
 
 
 async def _download_image(url: str) -> bytes:
-    async with httpx.AsyncClient(timeout=IMAGE_DOWNLOAD_TIMEOUT) as client:
-        resp = await client.get(url)
-        resp.raise_for_status()
-        return resp.content
+    settings = get_settings()
+    return await download_image(url, settings.dashscope_image_base_url or settings.dashscope_base_url)
 
 
 async def generate_image_for_question(question: Question, quiz_id: str) -> Optional[str]:
-    """为单道题目生成配图并上传至 COS，返回永久 URL；任何失败都返回 None（不抛异常）。"""
+    """为单道题目生成并持久化配图；任何失败都返回 None（不抛异常）。"""
     try:
         prompt = build_image_prompt(question)
-        temp_url = await asyncio.to_thread(_call_image_model_sync, prompt)
+        temp_url = await asyncio.wait_for(asyncio.to_thread(_call_image_model_sync, prompt), timeout=IMAGE_GENERATION_TIMEOUT)
         image_bytes = await _download_image(temp_url)
 
         settings = get_settings()
+        if settings.local_image_dir:
+            return await asyncio.to_thread(persist_image_bytes, settings.local_image_dir, image_bytes)
         key = f"{settings.cos_upload_prefix}{quiz_id}/{question.id}_{uuid.uuid4().hex[:8]}.png"
         return await upload_image_bytes(image_bytes, key)
     except Exception as e:
@@ -100,7 +100,7 @@ async def generate_image_for_question(question: Question, quiz_id: str) -> Optio
             "question_image_generation_failed",
             question_id=question.id,
             quiz_id=quiz_id,
-            error=str(e),
+            error=type(e).__name__,
         )
         return None
 
@@ -159,6 +159,6 @@ async def generate_images_for_quiz(
 
     failed = len(target_questions) - len(image_map)
     if failed:
-        failure_notice = f"{failed} 道题的配图未完成，题目可正常作答。请检查 quiz.env 中的生图和 COS 配置。"
+        failure_notice = f"{failed} 道题的配图未完成，题目可正常作答。请检查设置中的生图连接和图片存储配置（quiz.env）。"
         notice = f"{notice}；{failure_notice}" if notice else failure_notice
     return image_map, notice
