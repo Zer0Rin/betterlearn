@@ -16,6 +16,7 @@ import { KnowledgeBaseImport } from './KnowledgeBaseImport.js'
 import type { DshConversationSummary } from '../dsh-conversation-sessions.js'
 
 export interface ImportWorkspaceProps {
+  standalone?: boolean
   submitting: boolean
   error?: string
   modelSelection?: ModelSelectionSnapshot
@@ -52,7 +53,7 @@ function validationMessage(input: ImportTextInput | undefined): string | undefin
 }
 
 export function ImportWorkspace({
-  submitting, error, modelSelection, modelStatus, ordinarySession, onSubmit,
+  standalone = false, submitting, error, modelSelection, modelStatus, ordinarySession, onSubmit,
   conversations, previewDshConversations, onSubmitDsh,
   listKnowledgeBaseDocuments, previewKnowledgeBase, onSubmitKnowledgeBase, previewDocument, now = new Date(),
 }: ImportWorkspaceProps) {
@@ -186,12 +187,12 @@ export function ImportWorkspace({
       <header>
         <p className="nobei-client__eyebrow">新建学习材料</p>
         <h2 id="nobei-import-title">选择知识来源</h2>
-        <p>从已有 DSH 问答、本地知识库、文件或粘贴正文开始。每次导入会创建一个独立提取任务。</p>
+        <p>{standalone ? '从本地知识库、文件或粘贴正文开始。' : '从已有 DSH 问答、本地知识库、文件或粘贴正文开始。'}每次导入会创建一个独立提取任务。</p>
       </header>
       <div className="nobei-client__source-cards">
-        <button type="button" aria-label="从 DSH 对话提取" disabled={submitting} onClick={() => setSource('dsh')}>
+        {!standalone && <button type="button" aria-label="从 DSH 对话提取" disabled={submitting} onClick={() => setSource('dsh')}>
           <strong>从 DSH 对话提取</strong><span>选择一个或多个相关历史对话，先预览，再合并提取。</span>
-        </button>
+        </button>}
         <button type="button" aria-label="从知识库提取" disabled={submitting || !previewKnowledgeBase}
           onClick={() => setSource('knowledge-base')}>
           <strong>从知识库提取</strong><span>选择已上传到本地知识库的文档，按原文合并后提取。</span>
@@ -248,16 +249,16 @@ export function ImportWorkspace({
         <div className="nobei-client__notice" data-testid="nobei-model-selection" data-model-status={modelStatus}>
           {modelSelection
             ? <strong>本次模型：{modelSelectionLabel(modelSelection)}</strong>
-            : <strong>{modelStatus === 'loading' ? '正在读取 DSH 当前模型…' : '尚未读取到可用模型'}</strong>}
-          <p>修改 DSH 模型只影响之后创建的任务。</p>
+            : <strong>{modelStatus === 'loading' ? (standalone ? '正在读取模型配置…' : '正在读取 DSH 当前模型…') : '尚未读取到可用模型'}</strong>}
+          <p>{standalone ? '修改模型设置只影响之后创建的任务。' : '修改 DSH 模型只影响之后创建的任务。'}</p>
           <p data-testid="nobei-extraction-plan">{documentPreview.pending
             ? '正在预览提取计划（不调用模型）…'
             : documentPreview.preview
               ? `${documentPreview.preview.extractionPlan.strategy} · 点击“开始提取”会发起最多 ${documentPreview.preview.extractionPlan.maxCalls} 次模型调用。`
               : '短文点击“开始提取”会发起最多 1 次模型调用；长文预览后显示调用上限。'}</p>
           <p>长文会先规划，再分批提取；整批完成后统一审核。正文上限 512 KiB。</p>
-          {ordinarySession && modelStatus === 'unroutable' && <p>当前 DSH 模型不可用，请先在 DSH 设置中选择可用模型。</p>}
-          {ordinarySession && modelStatus === 'unavailable' && <p>无法读取 DSH 当前模型，请稍后重试。</p>}
+          {ordinarySession && modelStatus === 'unroutable' && <p>{standalone ? '请先在设置中配置可用模型。' : '当前 DSH 模型不可用，请先在 DSH 设置中选择可用模型。'}</p>}
+          {ordinarySession && modelStatus === 'unavailable' && <p>{standalone ? '无法读取模型配置，请检查设置。' : '无法读取 DSH 当前模型，请稍后重试。'}</p>}
           {!ordinarySession && <p>当前是子 Agent 会话，请在普通会话中使用 Nobei。</p>}
         </div>
         {mode === 'file' ? (

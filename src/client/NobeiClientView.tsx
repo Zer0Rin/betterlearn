@@ -12,6 +12,7 @@ import { useNobeiWorkspace, type WorkspaceScreen } from './use-nobei-workspace.j
 import { workspaceCopy } from './workspace-copy.js'
 
 export interface NobeiWorkspaceProps extends ModelSelectionInput {
+  standalone?: boolean
   sessionId: string
   api: ClientApi
   storage: Storage
@@ -23,7 +24,7 @@ export interface NobeiWorkspaceProps extends ModelSelectionInput {
 }
 
 export function NobeiWorkspace({
-  sessionId, api, storage, modelDirectoryState, loadModelSelection, readModelDirectory, ordinarySession, scheduler,
+  standalone = false, sessionId, api, storage, modelDirectoryState, loadModelSelection, readModelDirectory, ordinarySession, scheduler,
   onScreenChange, historyOpen = false, onOrganizeLearningBook, conversations = [],
 }: NobeiWorkspaceProps) {
   const workspace = useNobeiWorkspace({
@@ -82,7 +83,7 @@ export function NobeiWorkspace({
         </div>
       </header>
       <div className="nobei-client__workspace" data-workspace-screen={workspace.screen}>
-        {workspace.screen === 'import' && <ImportWorkspace submitting={workspace.busy}
+        {workspace.screen === 'import' && <ImportWorkspace standalone={standalone} submitting={workspace.busy}
           error={operationError} onSubmit={workspace.importText} previewDocument={api.previewDocument}
           conversations={conversations} previewDshConversations={api.previewDshConversations}
           onSubmitDsh={workspace.importDshConversations}

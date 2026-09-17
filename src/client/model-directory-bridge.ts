@@ -1,5 +1,4 @@
 import type { ModelSelectionSnapshot } from './types.js'
-import type { InjectFace } from '@deepseek-ai/dsh-client-ui-slots'
 
 export interface ModelDirectorySnapshot {
   current: ModelSelectionSnapshot | null
@@ -40,7 +39,9 @@ export function modelSelectionInjection(directories: ModelDirectoryResolverPort,
   }
 }
 
-export type ModelSelectionProps = InjectFace<ReturnType<typeof modelSelectionInjection>>
+export type ModelSelectionProps = Omit<ReturnType<typeof modelSelectionInjection>, 'hooks'> & {
+  useModelDirectory(): ModelDirectorySnapshot | undefined
+}
 export type ModelSelectionInput = Omit<ModelSelectionProps, 'useModelDirectory'> & {
   modelDirectoryState: ModelDirectorySnapshot | undefined
 }
