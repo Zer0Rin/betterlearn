@@ -4,6 +4,7 @@ import { mkdir, rm, writeFile } from 'node:fs/promises'
 const result = await build({
   entryPoints: ['src/client/index.tsx'],
   bundle: true,
+  loader: { '.css': 'text' },
   write: false,
   platform: 'browser',
   format: 'cjs',

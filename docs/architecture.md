@@ -1,5 +1,7 @@
 # BetterLearn for DSH 架构
 
+> 2026-09-17：已内置改造后的 yu-ai-learn 练习服务，新增知识库和练习入口。下文原 Core 的职责保持不变，新增服务边界见第 9 节。
+
 ## 1. 平台形态
 
 BetterLearn 是 DSH 的 Web 客户端插件。DSH CLI 启动本地服务，`dsh-web-app` 与 BetterLearn HTTP 路由由同一个 `ctx.webServer` 提供，用户界面运行在浏览器中。
@@ -123,3 +125,13 @@ Client任务恢复只随会话/存储生命周期发生，不随DSH模型目录�
 ## 8. P4 维护边界
 
 CLI管理专用DSH profile、Python环境和插件安装，不增加后台服务。SQLite在线backup支持运行中一致备份；restore仅在显式维护时校验所选备份并持已有CoreLease，先保存当前库，再恢复。正常业务读写不会因此增加检查。卸载不删除数据库或备份。
+
+## 9. 内置知识库与练习服务
+
+`services/quiz` 保存迁入的 FastAPI 服务，`src/client/quiz` 保存嵌入组件；安装包同时包含二者。原项目目录不参与构建或运行。安装/升级创建独立 `quiz-venv`、`quiz.env` 和 `quiz-data`，Host 启动时管理服务子进程，通过已绑定的回环 socket 获取端口，并检查就绪状态。缺失配置时拒绝启动，不回退原教程数据库。
+
+浏览器通过 `/nobei/quiz/v1` 的业务路由完成上传、生成、轮询、报告和历史读取。Host 重用原同源检查，只代理允许的路径及方法，限制请求大小；私有服务 token 和用户 JWT 留在 Host，自动获取并续期。面板导航不修改 DSH 的 hash，关闭/重开期间的待返回出题任务仍会保存并恢复。
+
+原 `/nobei/v1/knowledge-base/*` 路径继续服务于知识提取，默认读取同一受管理服务：选择文档 → 连续正文及摘要预览 → 原 Core 候选生成/证据审核 → 学习书。数据库仍分工明确：Core SQLite 保存提取与课程，练习 MySQL 保存文档元数据、题库和记录，Chroma 保存向量。练习成绩不自动覆盖原课程掌握度。
+
+模型配置目前分两套：知识提取使用 DSH 模型选择，练习沿用 `quiz.env` 中的 DeepSeek/Tavily/DashScope/COS 配置。`betterlearn backup` 仍只备份 Core SQLite；练习数据的备份迁移见[题库集成说明](quiz-integration.md)。

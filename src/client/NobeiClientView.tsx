@@ -7,11 +7,12 @@ import { RunProgress } from './components/RunProgress.js'
 import type { PollScheduler } from './poll-run.js'
 import { modelSelectionLabel, type ModelSelectionInput } from './model-directory-bridge.js'
 import type { ClientApi, KnowledgePointSnapshot } from './types.js'
-import type { DshConversationSummary } from './dsh-conversation-sessions.js'
+import type { DshConversationSummary } from './conversation-summary.js'
 import { useNobeiWorkspace, type WorkspaceScreen } from './use-nobei-workspace.js'
 import { workspaceCopy } from './workspace-copy.js'
 
 export interface NobeiWorkspaceProps extends ModelSelectionInput {
+  standalone?: boolean
   sessionId: string
   api: ClientApi
   storage: Storage
@@ -23,7 +24,7 @@ export interface NobeiWorkspaceProps extends ModelSelectionInput {
 }
 
 export function NobeiWorkspace({
-  sessionId, api, storage, modelDirectoryState, loadModelSelection, readModelDirectory, ordinarySession, scheduler,
+  standalone = false, sessionId, api, storage, modelDirectoryState, loadModelSelection, readModelDirectory, ordinarySession, scheduler,
   onScreenChange, historyOpen = false, onOrganizeLearningBook, conversations = [],
 }: NobeiWorkspaceProps) {
   const workspace = useNobeiWorkspace({
@@ -58,10 +59,13 @@ export function NobeiWorkspace({
   }, [api, historyOpen, historyReload, workspace.currentRunId, workspace.run?.revision])
   const activeModel = workspace.run?.modelSelection ?? workspace.modelSelection
   const unavailableMessage = workspace.serviceUnavailable ? workspaceCopy.unavailable : undefined
+  const workspaceMessage = standalone && workspace.message === '无法读取 DSH 当前模型，请重试。'
+    ? '请先在设置中配置文本模型，再重试知识提取。'
+    : workspace.message
   const operationError = unavailableMessage
     ?? (workspace.screen === 'import' || workspace.message === workspaceCopy.operationFailed
       || workspace.message === workspaceCopy.reviewUnconfirmed
-      ? workspace.message
+      ? workspaceMessage
       : undefined)
   return (
     <div className="nobei-client-layout" data-history-open={historyOpen ? 'true' : 'false'}>
@@ -82,10 +86,13 @@ export function NobeiWorkspace({
         </div>
       </header>
       <div className="nobei-client__workspace" data-workspace-screen={workspace.screen}>
-        {workspace.screen === 'import' && <ImportWorkspace submitting={workspace.busy}
+        {workspace.screen === 'import' && <ImportWorkspace standalone={standalone} submitting={workspace.busy}
           error={operationError} onSubmit={workspace.importText} previewDocument={api.previewDocument}
           conversations={conversations} previewDshConversations={api.previewDshConversations}
           onSubmitDsh={workspace.importDshConversations}
+          listKnowledgeBaseDocuments={api.listKnowledgeBaseDocuments}
+          previewKnowledgeBase={api.previewKnowledgeBase}
+          onSubmitKnowledgeBase={workspace.importKnowledgeBase}
           modelSelection={workspace.modelSelection} modelStatus={workspace.modelDirectoryStatus}
           ordinarySession={workspace.ordinarySession} />}
         {workspace.screen === 'processing' && <RunProgress run={workspace.run} progress={workspace.progress} busy={workspace.busy}
@@ -102,7 +109,7 @@ export function NobeiWorkspace({
           onUpdate={workspace.updateKnowledgePoint} onReset={workspace.reset}
           onOrganizeLearningBook={onOrganizeLearningBook} />}
       </div>
-      <p className="nobei-client__live-status" aria-live="polite">{workspace.message ?? unavailableMessage ?? ''}</p>
+      <p className="nobei-client__live-status" aria-live="polite">{workspaceMessage ?? unavailableMessage ?? ''}</p>
       </main>
     </div>
   )

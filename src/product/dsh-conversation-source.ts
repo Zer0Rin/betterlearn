@@ -14,24 +14,8 @@ export const DSH_CONVERSATION_MEDIA_TYPE =
 const MAX_DOCUMENT_BYTES = 512 * 1024
 const MAX_CONVERSATIONS = 50
 
-export type DshConversationSourceErrorCode =
-  | 'DSH_CONVERSATION_NOT_FOUND'
-  | 'DSH_CONVERSATION_NOT_ORDINARY'
-  | 'DSH_CONVERSATION_EMPTY'
-  | 'DSH_CONVERSATION_TOO_LARGE'
-  | 'DSH_CONVERSATION_READ_FAILED'
-  | 'DSH_CONVERSATION_CHANGED'
-
-export class DshConversationSourceError extends Error {
-  readonly name = 'DshConversationSourceError'
-
-  constructor(
-    readonly code: DshConversationSourceErrorCode,
-    readonly detail?: Record<string, number>,
-  ) {
-    super(code)
-  }
-}
+import { DshConversationSourceError } from './conversation-error.js'
+export { DshConversationSourceError, type DshConversationSourceErrorCode } from './conversation-error.js'
 
 export interface DshConversationDocument {
   sessionIds: string[]

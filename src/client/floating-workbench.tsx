@@ -1,3 +1,5 @@
+import { QuizWorkspace } from './quiz/QuizWorkspace.js'
+import { createQuizApi } from './quiz/services/api.js'
 import type { Context } from '@deepseek-ai/cordis'
 import type { ISessions } from '@deepseek-ai/dsh-client-runtime/client'
 import {
@@ -55,7 +57,7 @@ interface ResizeGesture {
 }
 
 type FloatingMode = 'workbench' | 'learning'
-type WorkbenchArea = 'home' | 'knowledge' | 'compose' | 'library'
+type WorkbenchArea = 'home' | 'knowledge' | 'compose' | 'library' | 'quiz'
 
 interface LearningBookDraft {
   points: KnowledgePointSnapshot[]
@@ -117,6 +119,8 @@ export function BetterLearnFloatingApp({
   const [expanded, setExpanded] = useState(false)
   const [historyOpen, setHistoryOpen] = useState(false)
   const [screen, setScreen] = useState<WorkbenchScreen>(sessionId === undefined ? 'empty' : 'import')
+  const quizApi = useMemo(() => createQuizApi(), [])
+  const [quizRoute, setQuizRoute] = useState('/')
   const clientApi = useMemo(() => api ?? createClientApi(), [api])
   const persistentSizeStorage = sizeStorage ?? window.localStorage
   const [viewport, setViewport] = useState(currentViewport)
@@ -150,7 +154,7 @@ export function BetterLearnFloatingApp({
 
   useEffect(() => {
     if (resizeGesture.current !== undefined) return
-    if (mode === 'learning') {
+    if (mode === 'learning' || area === 'quiz') {
       const next = clampWorkbenchSize(sizeRef.current, viewport)
       sizeRef.current = next
       setSize(next)
@@ -329,8 +333,19 @@ export function BetterLearnFloatingApp({
   }
 
   function openArea(next: WorkbenchArea): void {
+    if (area === 'quiz' && next !== 'quiz') {
+      const restored = clampWorkbenchSize(ordinarySize.current ?? defaultWorkbenchSize(screen, viewport), viewport)
+      sizeRef.current = restored; setSize(restored)
+    }
     setHistoryOpen(false)
     setArea(next)
+  }
+
+  function openQuiz(route: string): void {
+    ordinarySize.current = sizeRef.current
+    const next = clampWorkbenchSize({ width: 1080, height: viewport.height - 32 }, viewport)
+    sizeRef.current = next; setSize(next)
+    setQuizRoute(route); openArea('quiz')
   }
 
   function collapsePanel(): void {
@@ -376,6 +391,7 @@ export function BetterLearnFloatingApp({
           aria-label={historyOpen ? '收起提取历史' : '展开提取历史'} aria-expanded={historyOpen}
           onClick={() => setHistoryOpen(value => !value)}>历史</button>}
         <strong>{mode === 'learning' ? 'BetterLearn · 学习'
+          : area === 'quiz' ? 'BetterLearn · 练习与知识库'
           : area === 'knowledge' ? 'BetterLearn · 知识点'
           : area === 'compose' && bookDraft?.editingBook ? 'BetterLearn · 修改学习书'
           : area === 'compose' ? 'BetterLearn · 整理学习书'
@@ -383,6 +399,16 @@ export function BetterLearnFloatingApp({
       </div>
       <button type="button" aria-label="收起 BetterLearn" onClick={collapsePanel}>收起</button>
     </header>
+    {mode === 'workbench' && area === 'home' && <nav aria-label="知识库与练习" style={{ display: 'flex', gap: 12, padding: '12px 20px' }}>
+      <button type="button" data-testid="betterlearn-quiz-entry" onClick={() => openQuiz('/')}>开始练习</button>
+      <button type="button" data-testid="betterlearn-quiz-library-entry" onClick={() => openQuiz('/knowledge')}>我的知识库</button>
+    </nav>}
+    {mode === 'workbench' && area === 'quiz' && <QuizWorkspace key={quizRoute} api={quizApi} storage={storage}
+      initialRoute={quizRoute} onExit={() => openArea('home')} onOpenExtraction={() => openArea('knowledge')} />}
+    {mode === 'workbench' && area === 'knowledge' && sessionId === undefined && <div className="nobei-client" role="status">
+      <p>请先在 DSH 中选择或新建一个对话，再从知识库提取知识点。</p>
+      <button type="button" onClick={() => openQuiz('/knowledge')}>返回我的知识库</button>
+    </div>}
     {mode === 'workbench' && area === 'home'
       ? <BetterLearnGateway bookCount={learningBooks.length} knowledgeAvailable={sessionId !== undefined}
         onOpenKnowledge={() => openArea('knowledge')} onOpenLearning={() => openArea('library')} />

@@ -5,15 +5,18 @@ import {
   mediaTypeForFile,
   validateImport,
 } from '../import-validation.js'
-import type { ClientApi, ImportTextInput } from '../types.js'
+import type { ClientApi, ImportTextInput, KnowledgeBaseDocumentSummary } from '../types.js'
+import { ProductApiError } from '../client-api.js'
 import { documentPreviewError, useDocumentPreview } from '../use-document-preview.js'
 import type { ModelSelectionSnapshot } from '../types.js'
 import type { ModelDirectoryStatus } from '../use-nobei-workspace.js'
 import { modelSelectionLabel } from '../model-directory-bridge.js'
 import { DshConversationImport } from './DshConversationImport.js'
-import type { DshConversationSummary } from '../dsh-conversation-sessions.js'
+import { KnowledgeBaseImport } from './KnowledgeBaseImport.js'
+import type { DshConversationSummary } from '../conversation-summary.js'
 
 export interface ImportWorkspaceProps {
+  standalone?: boolean
   submitting: boolean
   error?: string
   modelSelection?: ModelSelectionSnapshot
@@ -23,12 +26,15 @@ export interface ImportWorkspaceProps {
   conversations: DshConversationSummary[]
   previewDshConversations: ClientApi['previewDshConversations']
   onSubmitDsh(input: { sessionIds: string[]; expectedDigest: string }): Promise<boolean>
+  listKnowledgeBaseDocuments?: ClientApi['listKnowledgeBaseDocuments']
+  previewKnowledgeBase?: ClientApi['previewKnowledgeBase']
+  onSubmitKnowledgeBase?(input: { docIds: string[]; expectedDigest: string }): Promise<boolean>
   previewDocument?: ClientApi['previewDocument']
   now?: Date
 }
 
 type InputMode = 'file' | 'paste'
-type ImportSource = 'landing' | 'document' | 'dsh'
+type ImportSource = 'landing' | 'document' | 'dsh' | 'knowledge-base'
 
 interface FileDraft {
   input: ImportTextInput
@@ -47,8 +53,9 @@ function validationMessage(input: ImportTextInput | undefined): string | undefin
 }
 
 export function ImportWorkspace({
-  submitting, error, modelSelection, modelStatus, ordinarySession, onSubmit,
-  conversations, previewDshConversations, onSubmitDsh, previewDocument, now = new Date(),
+  standalone = false, submitting, error, modelSelection, modelStatus, ordinarySession, onSubmit,
+  conversations, previewDshConversations, onSubmitDsh,
+  listKnowledgeBaseDocuments, previewKnowledgeBase, onSubmitKnowledgeBase, previewDocument, now = new Date(),
 }: ImportWorkspaceProps) {
   const [source, setSource] = useState<ImportSource>('landing')
   const [mode, setMode] = useState<InputMode>('file')
@@ -57,8 +64,41 @@ export function ImportWorkspace({
   const [fileDraft, setFileDraft] = useState<FileDraft>()
   const [fileError, setFileError] = useState<string>()
   const [readingFile, setReadingFile] = useState(false)
+  const [knowledgeBase, setKnowledgeBase] = useState<{
+    loading: boolean
+    configured: boolean
+    documents: KnowledgeBaseDocumentSummary[]
+    error?: string
+  }>({ loading: false, configured: true, documents: [] })
+  const [knowledgeBaseReload, setKnowledgeBaseReload] = useState(0)
   const selection = useRef(0)
   useEffect(() => () => { selection.current += 1 }, [])
+
+  useEffect(() => {
+    if (source !== 'knowledge-base' || !listKnowledgeBaseDocuments) return
+    const controller = new AbortController()
+    setKnowledgeBase(current => ({ ...current, loading: true, error: undefined }))
+    listKnowledgeBaseDocuments(controller.signal).then(result => {
+      if (controller.signal.aborted) return
+      setKnowledgeBase({
+        loading: false,
+        configured: result.configured !== false,
+        documents: result.documents,
+      })
+    }).catch(caught => {
+      if (controller.signal.aborted || (caught instanceof DOMException && caught.name === 'AbortError')) return
+      const code = caught instanceof ProductApiError ? caught.code : ''
+      setKnowledgeBase({
+        loading: false,
+        configured: code !== 'KNOWLEDGE_BASE_UNAVAILABLE',
+        documents: [],
+        error: code === 'KNOWLEDGE_BASE_UNAVAILABLE'
+          ? undefined
+          : '读取知识库文档失败，请检查知识库连接后重试。',
+      })
+    })
+    return () => controller.abort()
+  }, [source, knowledgeBaseReload, listKnowledgeBaseDocuments])
 
   const pasteInput = useMemo<ImportTextInput>(() => ({
     filename: pasteName,
@@ -147,11 +187,15 @@ export function ImportWorkspace({
       <header>
         <p className="nobei-client__eyebrow">新建学习材料</p>
         <h2 id="nobei-import-title">选择知识来源</h2>
-        <p>从已有 DSH 问答、文件或粘贴正文开始。每次导入会创建一个独立提取任务。</p>
+        <p>{standalone ? '从本地知识库、文件或粘贴正文开始。' : '从已有 DSH 问答、本地知识库、文件或粘贴正文开始。'}每次导入会创建一个独立提取任务。</p>
       </header>
       <div className="nobei-client__source-cards">
-        <button type="button" aria-label="从 DSH 对话提取" disabled={submitting} onClick={() => setSource('dsh')}>
+        {!standalone && <button type="button" aria-label="从 DSH 对话提取" disabled={submitting} onClick={() => setSource('dsh')}>
           <strong>从 DSH 对话提取</strong><span>选择一个或多个相关历史对话，先预览，再合并提取。</span>
+        </button>}
+        <button type="button" aria-label="从知识库提取" disabled={submitting || !previewKnowledgeBase}
+          onClick={() => setSource('knowledge-base')}>
+          <strong>从知识库提取</strong><span>选择已上传到本地知识库的文档，按原文合并后提取。</span>
         </button>
         <button type="button" aria-label="上传文件" disabled={submitting} onClick={() => { setMode('file'); setSource('document') }}>
           <strong>上传文件</strong><span>支持 TXT、Markdown 和有文字层的 PDF。</span>
@@ -174,12 +218,21 @@ export function ImportWorkspace({
       onSubmit={onSubmitDsh} onBack={() => setSource('landing')} />
   }
 
+  if (source === 'knowledge-base' && previewKnowledgeBase && onSubmitKnowledgeBase) {
+    return <KnowledgeBaseImport documents={knowledgeBase.documents} loading={knowledgeBase.loading}
+      configured={knowledgeBase.configured} loadError={knowledgeBase.error}
+      onReload={() => setKnowledgeBaseReload(value => value + 1)}
+      submitting={submitting} error={error} modelSelection={modelSelection} modelStatus={modelStatus}
+      ordinarySession={ordinarySession} previewKnowledgeBase={previewKnowledgeBase}
+      onSubmit={onSubmitKnowledgeBase} onBack={() => setSource('landing')} />
+  }
+
   return (
     <section className="nobei-client__import" aria-labelledby="nobei-import-title">
       <header>
         <p className="nobei-client__eyebrow">新建学习材料</p>
         <h2 id="nobei-import-title">从一段原文开始</h2>
-        <p>导入 TXT、Markdown、有文字层的 PDF，或直接粘贴文本。Nobei 会先定位证据，再交给你审核。</p>
+        <p>导入 TXT、Markdown、有文字层的 PDF，或直接粘贴文本。BetterLearn 会先定位证据，再交给你审核。</p>
       </header>
 
       <button className="nobei-client__back" type="button" disabled={submitting}
@@ -196,16 +249,16 @@ export function ImportWorkspace({
         <div className="nobei-client__notice" data-testid="nobei-model-selection" data-model-status={modelStatus}>
           {modelSelection
             ? <strong>本次模型：{modelSelectionLabel(modelSelection)}</strong>
-            : <strong>{modelStatus === 'loading' ? '正在读取 DSH 当前模型…' : '尚未读取到可用模型'}</strong>}
-          <p>修改 DSH 模型只影响之后创建的任务。</p>
+            : <strong>{modelStatus === 'loading' ? (standalone ? '正在读取模型配置…' : '正在读取 DSH 当前模型…') : '尚未读取到可用模型'}</strong>}
+          <p>{standalone ? '修改模型设置只影响之后创建的任务。' : '修改 DSH 模型只影响之后创建的任务。'}</p>
           <p data-testid="nobei-extraction-plan">{documentPreview.pending
             ? '正在预览提取计划（不调用模型）…'
             : documentPreview.preview
               ? `${documentPreview.preview.extractionPlan.strategy} · 点击“开始提取”会发起最多 ${documentPreview.preview.extractionPlan.maxCalls} 次模型调用。`
               : '短文点击“开始提取”会发起最多 1 次模型调用；长文预览后显示调用上限。'}</p>
           <p>长文会先规划，再分批提取；整批完成后统一审核。正文上限 512 KiB。</p>
-          {ordinarySession && modelStatus === 'unroutable' && <p>当前 DSH 模型不可用，请先在 DSH 设置中选择可用模型。</p>}
-          {ordinarySession && modelStatus === 'unavailable' && <p>无法读取 DSH 当前模型，请稍后重试。</p>}
+          {ordinarySession && modelStatus === 'unroutable' && <p>{standalone ? '请先在设置中配置可用模型。' : '当前 DSH 模型不可用，请先在 DSH 设置中选择可用模型。'}</p>}
+          {ordinarySession && modelStatus === 'unavailable' && <p>{standalone ? '无法读取模型配置，请检查设置。' : '无法读取 DSH 当前模型，请稍后重试。'}</p>}
           {!ordinarySession && <p>当前是子 Agent 会话，请在普通会话中使用 Nobei。</p>}
         </div>
         {mode === 'file' ? (

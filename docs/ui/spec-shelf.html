@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>BetterLearn 书架 · 规范对比稿</title>
+<style>
+/* ============================================================
+   令牌（取自 src/standalone/tokens.css，含本次新增档位）
+   ============================================================ */
+:root {
+  --neutral-0:#ffffff; --neutral-50:#f7f8f5; --neutral-100:#eef1ec;
+  --neutral-200:#dce2da; --neutral-300:#c3cbc2; --neutral-400:#89968d;
+  --neutral-500:#6f7a72; --neutral-600:#5d6962; --neutral-700:#3f4a44;
+  --neutral-900:#26332c;
+  --green-50:#eaf2ed; --green-300:#93b3a1; --green-700:#35634e; --green-800:#284e3d;
+
+  --color-bg-page:var(--neutral-50); --color-bg-surface:var(--neutral-0);
+  --color-bg-sunken:var(--neutral-100); --color-bg-raised:var(--neutral-0);
+  --color-text-primary:var(--neutral-900); --color-text-secondary:var(--neutral-600);
+  --color-text-tertiary:var(--neutral-500);
+  --color-text-disabled:var(--neutral-400); --color-text-on-accent:var(--neutral-0);
+  --color-border:var(--neutral-300); --color-border-strong:var(--neutral-500);
+  --color-separator:var(--neutral-200); --color-focus:var(--green-700);
+  --color-accent-subtle:var(--green-50); --color-accent-border:var(--green-300);
+  --color-accent-solid:var(--green-700); --color-accent-solid-hover:var(--green-800);
+
+  --cover-unstarted:#e8eae4; --cover-unstarted-hover:#e2e5de;
+  --cover-started:#38423c; --cover-started-hover:#2c352f;
+
+  --font-ui:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+  --text-caption:12px; --text-meta:13px; --text-body:14px; --text-lead:15px;
+  --text-section:16px; --text-title:22px;
+
+  --radius-control:6px; --radius-card:8px; --radius-panel:10px;
+  --space-1:4px; --space-2:8px; --space-3:12px; --space-4:16px; --space-6:24px; --space-8:32px;
+  --shadow-card:0 1px 2px #26332c0a;
+  --shadow-card-hover:0 4px 12px #26332c14;
+  --duration-fast:120ms; --duration-base:160ms;
+  --ease-out:cubic-bezier(.2,.8,.4,1);
+}
+* { box-sizing:border-box; }
+body {
+  margin:0; padding:32px; background:#e9ebe7; color:var(--color-text-primary);
+  font-family:var(--font-ui); font-size:var(--text-body); line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+}
+.page-head { max-width:1220px; margin:0 auto 28px; }
+.page-head h1 { font-size:var(--text-title); font-weight:600; letter-spacing:-.3px; margin:0 0 6px; }
+.page-head p { margin:0; color:var(--color-text-secondary); font-size:var(--text-meta); }
+.cols { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:24px; max-width:1220px; margin:0 auto; }
+@media (max-width:1100px){ .cols { grid-template-columns:minmax(0,1fr); } }
+.pane { background:var(--color-bg-surface); border:1px solid var(--color-separator); border-radius:var(--radius-panel); overflow:hidden; }
+.pane > header {
+  display:flex; align-items:baseline; gap:10px; padding:14px 20px;
+  border-bottom:1px solid var(--color-separator); background:var(--color-bg-page);
+}
+.pane > header strong { font-size:var(--text-meta); font-weight:600; }
+.pane > header span { font-size:var(--text-caption); color:var(--color-text-tertiary); }
+.pane > header em { margin-left:auto; font-style:normal; font-size:var(--text-caption); color:var(--color-text-tertiary); font-variant-numeric:tabular-nums; }
+.pane-body { padding:24px 20px 28px; }
+.shelf-heading { display:flex; align-items:baseline; gap:10px; margin:0 0 20px; }
+.shelf-heading h2 { font-size:var(--text-title); font-weight:600; letter-spacing:-.3px; margin:0; }
+.shelf-heading span { font-size:var(--text-caption); color:var(--color-text-tertiary); font-variant-numeric:tabular-nums; }
+.shelf-sub { margin:0 0 22px; color:var(--color-text-secondary); font-size:var(--text-lead); }
+
+/* ---------- 网格 ---------- */
+.grid { display:grid; gap:20px; }
+.grid--before { grid-template-columns:repeat(auto-fill,minmax(190px,1fr)); }
+.grid--after  { grid-template-columns:repeat(4,minmax(0,1fr)); }
+@media (max-width:1240px){ .grid--after { grid-template-columns:repeat(3,minmax(0,1fr)); } }
+
+.card { display:grid; gap:var(--space-2); align-content:start; text-align:left; border:0; background:none; padding:0; font:inherit; color:inherit; cursor:pointer; }
+
+/* ---------- 封面：改前（按知识点类型上色） ---------- */
+.before .cover {
+  position:relative; display:flex; flex-direction:column; height:208px; min-height:208px;
+  padding:18px 16px 16px 21px; border:1px solid #0000000a; border-radius:2px 4px 4px 2px;
+  color:#f5f3ec; background:#485653;
+  box-shadow:inset 3px 0 #ffffff0f, inset 6px 0 #00000010, 2px 0 #e1e0d9, 4px 5px 9px #30332f19;
+}
+.before .cover[data-point-type=process]    { background:#6d7456; }
+.before .cover[data-point-type=comparison] { background:#5b6575; }
+.before .cover[data-point-type=formula]    { background:#65657a; }
+.before .cover[data-point-type=fact]       { background:#766b5b; }
+.before .cover[data-point-type=code]       { background:#42494d; }
+.before .cover small { font-size:12px; letter-spacing:.04em; }
+.before .cover b { display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; align-self:start; margin-top:18px; font-size:19px; font-weight:600; line-height:1.55; letter-spacing:.02em; }
+.before .cover > small:last-child { margin-top:auto; }
+.before .copy { display:grid; gap:7px; }
+.before .copy strong { font-size:13px; font-weight:500; line-height:1.5; }
+.before .copy small { font-size:12px; color:var(--neutral-400); }
+.before .bar { height:2px; background:var(--neutral-200); }
+.before .bar i { display:block; height:100%; background:var(--green-700); }
+.before .bar.off i { display:none; }
+
+/* ---------- 封面：改后（只表达进度） ---------- */
+.after .card { gap:var(--space-3); }
+.after .cover {
+  position:relative; display:flex; flex-direction:column; height:168px; min-height:168px;
+  padding:16px; border-radius:var(--radius-control);
+  background:var(--cover-unstarted); color:var(--color-text-primary);
+  box-shadow:inset 0 0 0 1px #26332c0f;
+  transition:transform var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out), background var(--duration-fast) var(--ease-out);
+}
+.after .card:hover .cover { transform:translateY(-2px); box-shadow:inset 0 0 0 1px #26332c14, var(--shadow-card-hover); background:var(--cover-unstarted-hover); }
+.after .card[data-started=true] .cover { background:var(--cover-started); color:#f2f3f0; box-shadow:inset 0 0 0 1px #ffffff12; }
+.after .card[data-started=true]:hover .cover { background:var(--cover-started-hover); box-shadow:inset 0 0 0 1px #ffffff18, var(--shadow-card-hover); }
+/* 书脊：只做一道，够读出来就停 */
+.after .cover::before { content:''; position:absolute; inset:0 auto 0 0; width:3px; border-radius:var(--radius-control) 0 0 var(--radius-control); background:#26332c0d; }
+.after .card[data-started=true] .cover::before { background:#ffffff1a; }
+
+.after .cover-kicker { font-size:11px; font-weight:600; letter-spacing:.08em; color:var(--color-text-tertiary); }
+.after .card[data-started=true] .cover-kicker { color:#a8b8ae; }
+.after .cover-title { display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; margin-top:auto; font-size:var(--text-lead); font-weight:500; line-height:1.45; letter-spacing:0; text-wrap:balance; }
+.after .cover-count { font-size:11px; color:var(--color-text-tertiary); margin-top:var(--space-2); font-variant-numeric:tabular-nums; }
+.after .card[data-started=true] .cover-count { color:#93a399; }
+
+.after .copy { display:grid; gap:var(--space-2); }
+.after .copy strong { font-size:var(--text-meta); font-weight:600; line-height:1.5; color:var(--color-text-primary); }
+.after .copy small { font-size:var(--text-meta); color:var(--color-text-tertiary); font-variant-numeric:tabular-nums; }
+.after .bar { height:3px; border-radius:999px; background:var(--neutral-200); overflow:hidden; }
+.after .bar i { display:block; height:100%; border-radius:999px; background:var(--green-700); }
+.after .bar.off i { display:none; }
+
+/* ---------- 结论区 ---------- */
+.notes { max-width:1220px; margin:28px auto 0; background:var(--color-bg-surface); border:1px solid var(--color-separator); border-radius:var(--radius-panel); padding:22px 24px; }
+.notes h2 { font-size:var(--text-section); font-weight:600; margin:0 0 14px; }
+.notes table { width:100%; border-collapse:collapse; font-size:var(--text-meta); }
+.notes th,.notes td { text-align:left; padding:9px 12px; border-bottom:1px solid var(--color-separator); vertical-align:top; }
+.notes th { font-weight:600; color:var(--color-text-secondary); font-size:var(--text-caption); }
+.notes td.n { font-variant-numeric:tabular-nums; white-space:nowrap; }
+.notes tr:last-child td { border-bottom:0; }
+.ok { color:var(--green-700); font-weight:600; }
+.bad { color:#a03e39; font-weight:600; }
+.legend { display:flex; gap:18px; flex-wrap:wrap; margin:0 0 18px; font-size:var(--text-caption); color:var(--color-text-secondary); }
+.legend i { display:inline-block; width:11px; height:11px; border-radius:3px; vertical-align:-1px; margin-right:6px; }
+</style>
+</head>
+<body>
+
+<div class="page-head">
+  <h1>书架：规范对比稿</h1>
+  <p>左为当前实现（封面按知识点类型上色），右为按规范改后的样子（封面只表达进度）。全部数值取自 src/standalone/tokens.css。</p>
+</div>
+
+<div class="cols">
+  <section class="pane before">
+    <header><strong>改前</strong><span>封面按 data-point-type 上色</span><em>5 种封面颜色</em></header>
+    <div class="pane-body">
+      <div class="shelf-heading"><h2>学习书</h2><span>6 本</span></div>
+      <div class="grid grid--before" id="beforeGrid"></div>
+    </div>
+  </section>
+
+  <section class="pane after">
+    <header><strong>改后</strong><span>封面只表达「是否开始」</span><em>2 种封面颜色</em></header>
+    <div class="pane-body">
+      <div class="shelf-heading"><h2>学习书</h2><span>6 本</span></div>
+      <p class="shelf-sub">把整理过的知识，变成自己的理解。选择一本学习书，继续学习。</p>
+      <div class="grid grid--after" id="afterGrid"></div>
+    </div>
+  </section>
+</div>
+
+<section class="notes">
+  <h2>规范自检</h2>
+  <div class="legend">
+    <span><i style="background:#e8eae4"></i>未开始</span>
+    <span><i style="background:#38423c"></i>已开始</span>
+  </div>
+  <table>
+    <thead><tr><th>检查项</th><th>改前</th><th>改后</th><th class="n">实测</th></tr></thead>
+    <tbody>
+      <tr><td>封面颜色种类</td><td class="bad">5 种（编号随机，与学科无关）</td><td class="ok">2 种（只表达进度）</td><td class="n">5 → 2</td></tr>
+      <tr><td>封面书名字号 / 字重</td><td class="bad">19px / 600，压过下方标题</td><td class="ok">15px / 500，回到点缀</td><td class="n">19 → 15</td></tr>
+      <tr><td>封面高度</td><td class="bad">208px，第二行被截断</td><td class="ok">168px，4 列有上限</td><td class="n">208 → 168</td></tr>
+      <tr><td>元信息字号 / 对比度</td><td class="bad">12px · neutral-400（Lc 60.5）</td><td class="ok">13px · neutral-500（Lc 74）</td><td class="n">60.5 → 74</td></tr>
+      <tr><td>悬停位移 / 时长</td><td class="bad">3px / 160ms ease</td><td class="ok">2px / 120ms ease-out</td><td class="n">3 → 2</td></tr>
+      <tr><td>圆角</td><td class="bad">封面 2/4px，与外层无对应</td><td class="ok">封面 6px，卡片 8px（同心）</td><td class="n">同心</td></tr>
+      <tr><td>数字抖动</td><td class="bad">进度数字未设 tabular-nums</td><td class="ok">全部 tabular-nums</td><td class="n">已修</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<script>
+const books = [
+  { title:'认知心理学：记忆与学习', type:'概念', n:12, done:3, total:8, pct:75, started:true },
+  { title:'从问题到解决方案',     type:'流程', n:8,  done:0, total:0, pct:0,  started:false },
+  { title:'理解概率与统计',       type:'公式', n:16, done:0, total:0, pct:0,  started:false },
+  { title:'设计中的日常观察',     type:'比较', n:6,  done:0, total:0, pct:0,  started:false },
+  { title:'Python 编程基础',      type:'代码', n:14, done:0, total:0, pct:0,  started:false },
+  { title:'世界历史的关键时刻',   type:'事实', n:9,  done:0, total:0, pct:0,  started:false },
+]
+const typeKey = { 概念:'fact', 流程:'process', 公式:'formula', 比较:'comparison', 代码:'code', 事实:'fact' }
+const progressText = b => b.started ? `已完成 ${b.done}/${b.total} · 掌握度 ${b.pct}%` : '尚未开始'
+
+document.getElementById('beforeGrid').innerHTML = books.map(b => `
+  <button class="card" type="button">
+    <span class="cover" data-point-type="${typeKey[b.type]}">
+      <small>${b.type}</small>
+      <b>${b.title}</b>
+      <small>${b.n} 个知识点</small>
+    </span>
+    <span class="copy">
+      <strong>${b.title}</strong>
+      <small>${progressText(b)}</small>
+    </span>
+    <span class="bar${b.started?'':' off'}"><i style="width:${b.pct}%"></i></span>
+  </button>`).join('')
+
+document.getElementById('afterGrid').innerHTML = books.map(b => `
+  <button class="card" type="button" data-started="${b.started}">
+    <span class="cover">
+      <span class="cover-kicker">${b.type}</span>
+      <span class="cover-title">${b.title}</span>
+      <span class="cover-count">${b.n} 个知识点</span>
+    </span>
+    <span class="copy">
+      <strong>${b.title}</strong>
+      <small>${progressText(b)}</small>
+    </span>
+    <span class="bar${b.started?'':' off'}"><i style="width:${b.pct}%"></i></span>
+  </button>`).join('')
+</script>
+</body>
+</html>

@@ -4,6 +4,9 @@
       config:
         pythonExecutable: !!js process.env.NOBEI_PHASE1C_PYTHON_EXECUTABLE
         dataRoot: !!js process.env.NOBEI_PHASE1C_DATA_ROOT
+        quizPythonExecutable: !!js process.env.BETTERLEARN_QUIZ_PYTHON_EXECUTABLE
+        quizEnvFile: !!js process.env.BETTERLEARN_QUIZ_ENV_FILE
+        quizDataRoot: !!js process.env.BETTERLEARN_QUIZ_DATA_ROOT
         ownershipToken: !!js process.env.NOBEI_PHASE1C_OWNERSHIP_TOKEN
 - id: llm-retry
   disabled: true

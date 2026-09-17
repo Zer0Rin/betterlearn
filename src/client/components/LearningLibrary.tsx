@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { BookOpen, Plus } from 'lucide-react'
 import type { LearningBook } from '../learning-book-library.js'
 import type { KnowledgePointSnapshot } from '../types.js'
 
@@ -39,6 +40,7 @@ export function BetterLearnGateway({
 }
 
 export interface LearningBookshelfProps {
+  presentation?: 'desktop'
   books: LearningBook[]
   newBookId?: string
   storageWarning?: string
@@ -49,8 +51,9 @@ export interface LearningBookshelfProps {
 }
 
 export function LearningBookshelf({
-  books, newBookId, storageWarning, onOpenBook, onEditBook, onDeleteBook, onOpenKnowledge,
+  books, newBookId, storageWarning, onOpenBook, onEditBook, onDeleteBook, onOpenKnowledge, presentation,
 }: LearningBookshelfProps) {
+  const desktop = presentation === 'desktop'
   const [managing, setManaging] = useState(false)
   const [deleteBookId, setDeleteBookId] = useState<string>()
   const [deletingBookId, setDeletingBookId] = useState<string>()
@@ -87,28 +90,38 @@ export function LearningBookshelf({
   }
 
   return (
-    <main className="betterlearn-library" data-testid="learning-bookshelf">
+    <main className="betterlearn-library" data-testid="learning-bookshelf" data-presentation={presentation}>
       <header className="betterlearn-library__heading">
         <div>
-          <p>Learning Space</p>
-          <h1>学习空间</h1>
-          <span>知识点先被整合为学习书；打开一本书，才进入具体学习。</span>
+          {desktop ? <>
+            <h1>学习书</h1>
+            <span className="betterlearn-library__count">{books.length} 本</span>
+          </> : <>
+            <p>Learning Space</p>
+            <h1>学习空间</h1>
+            <span>知识点先被整合为学习书；打开一本书，才进入具体学习。</span>
+          </>}
         </div>
-        {books.length > 0 && <div className="betterlearn-library__heading-actions">
-          <button type="button" data-testid="learning-library-manage"
+        {(desktop || books.length > 0) && <div className="betterlearn-library__heading-actions">
+          {books.length > 0 && <button type="button" data-testid="learning-library-manage"
             aria-pressed={managing} onClick={toggleManaging}>
             {managing ? '完成' : '管理'}
-          </button>
+          </button>}
+          {desktop && <button type="button" className="betterlearn-library__create"
+            data-testid="learning-library-create" onClick={onOpenKnowledge}>
+            <Plus size={14} aria-hidden="true" />新建学习书
+          </button>}
         </div>}
       </header>
+      {desktop && books.length > 0 && <p className="betterlearn-library__intro">把整理过的知识，变成自己的理解。选择一本学习书，继续学习。</p>}
       {storageWarning && <p className="betterlearn-library__warning">{storageWarning}</p>}
       {books.length === 0 ? (
         <section className="betterlearn-library__empty">
-          <span>空书架</span>
+          {desktop ? <BookOpen size={42} strokeWidth={1.2} aria-hidden="true" /> : <span>空书架</span>}
           <h2>还没有学习书</h2>
-          <p>先完成一次知识提取，并把确认后的知识点整理为学习书。</p>
+          <p>{desktop ? '从资料中提取知识点，整理成第一本学习书。' : '先完成一次知识提取，并把确认后的知识点整理为学习书。'}</p>
           <button type="button" data-testid="learning-library-empty-action"
-            onClick={onOpenKnowledge}>去知识点入口</button>
+            onClick={onOpenKnowledge}>{desktop ? '导入资料' : '去知识点入口'}</button>
         </section>
       ) : (
         <section className="betterlearn-library__shelf" aria-label="学习书">
@@ -118,20 +131,44 @@ export function LearningBookshelf({
               <button type="button" className="betterlearn-library__book"
                 data-testid={`learning-book-${book.bookId}`}
                 data-new={book.bookId === newBookId ? 'true' : 'false'}
+                title={book.title}
+                aria-label={desktop ? `${book.title}，${book.points.length} 个知识点，${book.progress
+                  ? `已完成 ${book.progress.completed} / ${book.progress.total}，掌握度 ${book.progress.mastery}%`
+                  : book.bookId === newBookId ? '刚刚创建' : '尚未开始'}，打开学习书` : undefined}
                 disabled={managing || deletingBookId === book.bookId}
                 onClick={() => onOpenBook(book)}>
-                <span className="betterlearn-library__cover" aria-hidden="true">
-                  <i>{String(index + 1).padStart(2, '0')}</i>
-                  <b>BETTER<br />LEARN</b>
-                  <small>学习书</small>
+                <span className="betterlearn-library__cover" aria-hidden="true"
+                  data-point-type={desktop ? book.points[0]?.type : undefined}>
+                  {desktop ? <>
+                    <small className="betterlearn-library__cover-category">
+                      {book.points[0] ? bookCategory[book.points[0].type] : '学习笔记'}
+                    </small>
+                    <b>{book.title}</b>
+                    <small className="betterlearn-library__cover-footer">{book.points.length} 个知识点</small>
+                  </> : <>
+                    <i>{String(index + 1).padStart(2, '0')}</i>
+                    <b>BETTER<br />LEARN</b>
+                    <small>学习书</small>
+                  </>}
                 </span>
                 <span className="betterlearn-library__book-copy">
-                  <small>{book.points.length} 个知识点 · {book.progress
-                    ? `已完成 ${book.progress.completed}/${book.progress.total} · 掌握度 ${book.progress.mastery}%`
-                    : book.bookId === newBookId ? '刚刚创建' : '尚未开始'}</small>
-                  <strong>{book.title}</strong>
-                  <span>{book.points.slice(0, 3).map(point => point.title).join(' · ')}</span>
-                  <em>{managing ? '管理这本学习书' : book.progress ? '继续学习 →' : '开始学习 →'}</em>
+                  {desktop ? <>
+                    <strong>{book.title}</strong>
+                    <small>{book.progress
+                      ? `已完成 ${book.progress.completed} / ${book.progress.total} · 掌握度 ${book.progress.mastery}%`
+                      : book.bookId === newBookId ? '刚刚创建' : '尚未开始'}</small>
+                    <span className="betterlearn-library__progress" aria-hidden="true">
+                      <span style={{ width: `${book.progress && book.progress.total > 0
+                        ? Math.max(0, Math.min(100, book.progress.completed / book.progress.total * 100)) : 0}%` }} />
+                    </span>
+                  </> : <>
+                    <small>{book.points.length} 个知识点 · {book.progress
+                      ? `已完成 ${book.progress.completed}/${book.progress.total} · 掌握度 ${book.progress.mastery}%`
+                      : book.bookId === newBookId ? '刚刚创建' : '尚未开始'}</small>
+                    <strong>{book.title}</strong>
+                    <span>{book.points.slice(0, 3).map(point => point.title).join(' · ')}</span>
+                    <em>{managing ? '管理这本学习书' : book.progress ? '继续学习 →' : '开始学习 →'}</em>
+                  </>}
                 </span>
               </button>
               {managing && deleteBookId !== book.bookId && (
@@ -165,6 +202,10 @@ export function LearningBookshelf({
       )}
     </main>
   )
+}
+
+const bookCategory: Record<KnowledgePointSnapshot['type'], string> = {
+  concept: '概念', process: '流程', comparison: '比较', formula: '公式', fact: '事实', code: '代码',
 }
 
 export interface LearningBookDraftResult {

@@ -1,6 +1,6 @@
 import { fileURLToPath } from 'node:url'
 import { isAbsolute } from 'node:path'
-import type { SubprocessHandle, SubprocessSpawnSpec } from '@deepseek-ai/dsh-subprocess'
+import type { SubprocessHandle, SubprocessSpawnSpec } from './subprocess-port.js'
 import {
   CORE_CAPABILITIES,
   CORE_DATABASE_KIND,

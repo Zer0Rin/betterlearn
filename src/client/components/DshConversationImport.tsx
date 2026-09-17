@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ProductApiError } from '../client-api.js'
-import type { DshConversationSummary } from '../dsh-conversation-sessions.js'
+import type { DshConversationSummary } from '../conversation-summary.js'
 import { modelSelectionLabel } from '../model-directory-bridge.js'
 import type {
   ClientApi,

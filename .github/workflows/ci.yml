@@ -38,15 +38,20 @@ jobs:
       - name: Install dependencies
         run: CI=true pnpm install --frozen-lockfile
 
-      - name: Build
-        run: pnpm build
+      - name: Prepare Python environments
+        run: |
+          python -m venv .venv-phase1b
+          .venv-phase1b/bin/python -m pip install -r python/requirements-phase1-dev.lock
+          python -m venv services/quiz/.venv
+          services/quiz/.venv/bin/python -m pip install -r services/quiz/requirements.txt
 
-      - name: Run TypeScript tests
+      - name: Build and run Web tests
         env:
           NOBEI_PHASE1_PYTHON: ${{ steps.setup-python.outputs.python-path }}
-        run: pnpm exec vitest run --testTimeout 15000
+        run: pnpm test
 
-      - name: Run Python tests
-        env:
-          NOBEI_PHASE1_PYTHON: ${{ steps.setup-python.outputs.python-path }}
-        run: pnpm test:phase1b-python
+      - name: Run Core tests
+        run: pnpm test:core
+
+      - name: Run Quiz tests
+        run: pnpm test:quiz

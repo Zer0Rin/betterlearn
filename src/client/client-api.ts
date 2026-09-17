@@ -6,6 +6,9 @@ import type {
   EventPage,
   GenerationLaunch,
   ImportTextRequest,
+  KnowledgeBaseDocumentSummary,
+  KnowledgeBaseImportRequest,
+  KnowledgeBasePreview,
   ReviewCommand,
   ReviewResult,
   RunSnapshot,
@@ -101,6 +104,18 @@ export function createClientApi(): ClientApi {
     },
     importDshConversations(input: DshConversationImportRequest, signal?: AbortSignal) {
       return post<GenerationLaunch>('/nobei/v1/dsh-conversations/imports', input, signal)
+    },
+    listKnowledgeBaseDocuments(signal?: AbortSignal) {
+      return get<{ documents: KnowledgeBaseDocumentSummary[]; configured?: boolean }>(
+        '/nobei/v1/knowledge-base/documents',
+        signal,
+      )
+    },
+    previewKnowledgeBase(docIds: string[], signal?: AbortSignal) {
+      return post<KnowledgeBasePreview>('/nobei/v1/knowledge-base/preview', { docIds }, signal)
+    },
+    importKnowledgeBase(input: KnowledgeBaseImportRequest, signal?: AbortSignal) {
+      return post<GenerationLaunch>('/nobei/v1/knowledge-base/imports', input, signal)
     },
     getRun(runId: string, signal?: AbortSignal) {
       return get<RunSnapshot>(`/nobei/v1/runs/${encodeURIComponent(runId)}`, signal)

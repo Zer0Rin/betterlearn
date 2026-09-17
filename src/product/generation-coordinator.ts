@@ -8,15 +8,15 @@ import type { FixedCoreRpcClient } from './core-rpc-client.js'
 import type {
   GenerationAdapterResult,
   GenerationHandle,
-  StructuredGenerationAdapter,
-} from './generation-adapter.js'
+  GenerationAdapter,
+} from './generation-plan.js'
 import type {
   ImportAndPrepareParams,
   PreparedGeneration,
   RetryAndPrepareParams,
   ModelSelectionSnapshot,
 } from './types.js'
-import type { ModelSelectionResolver } from './model-selection-resolver.js'
+import type { ModelSelectionResolver } from './model-selection-port.js'
 
 interface SupervisorPort {
   withReadyClient<T>(operation: (client: FixedCoreRpcClient) => Promise<T>): Promise<T>
@@ -60,7 +60,7 @@ export class GenerationCoordinator {
 
   constructor(
     private readonly supervisor: SupervisorPort,
-    private readonly adapter: StructuredGenerationAdapter,
+    private readonly adapter: GenerationAdapter,
     private readonly modelSelectionResolver: ModelSelectionResolver,
   ) {}
 

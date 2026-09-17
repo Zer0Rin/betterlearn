@@ -134,6 +134,17 @@ describe('BetterLearn floating workbench shell', () => {
     for (const listener of windowListeners.get(type) ?? []) listener(event)
   }
 
+  test('knowledge extraction shortcut explains how to select a session instead of showing an empty panel', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => Response.json({ code: 0, data:
+      url.endsWith('/session') ? { user: {} } : url.endsWith('/profile') ? { nickname: '学习者' } : { items: [] }
+    })))
+    renderEmpty()
+    act(() => renderer.root.findByProps({ 'data-testid': 'betterlearn-launcher' }).props.onClick())
+    await act(async () => renderer.root.findByProps({ 'data-testid': 'betterlearn-quiz-library-entry' }).props.onClick())
+    act(() => renderer.root.findAllByType('button').find(button => button.props.children === '从资料提取知识点')!.props.onClick())
+    expect(JSON.stringify(renderer.toJSON())).toContain('请先在 DSH 中选择或新建一个对话')
+  })
+
   test('starts collapsed and opens from the BetterLearn launcher', () => {
     renderEmpty()
     const launcher = renderer.root.findByProps({ 'data-testid': 'betterlearn-launcher' })
@@ -146,6 +157,18 @@ describe('BetterLearn floating workbench shell', () => {
     expect(renderer.root.findByProps({ 'data-testid': 'betterlearn-gateway' })).toBeDefined()
     expect(renderer.root.findByProps({ 'data-testid': 'betterlearn-knowledge-entry' })).toBeDefined()
     expect(renderer.root.findByProps({ 'data-testid': 'betterlearn-library-entry' })).toBeDefined()
+  })
+
+  test('opens quiz library from the gateway and returns to the existing extraction workspace', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => new Response(JSON.stringify({ code: 0, data:
+      url.endsWith('/session') ? { user: {} } : url.endsWith('/profile') ? { nickname: '学习者' } : { items: [] }
+    }))))
+    renderEmpty()
+    act(() => renderer.root.findByProps({ 'data-testid': 'betterlearn-launcher' }).props.onClick())
+    await act(async () => renderer.root.findByProps({ 'data-testid': 'betterlearn-quiz-library-entry' }).props.onClick())
+    expect(renderer.root.findAllByType('input').some(input => input.props.type === 'file')).toBe(true)
+    act(() => renderer.root.findAllByType('button').find(button => button.props.children === '从资料提取知识点')!.props.onClick())
+    expect(renderer.root.findByProps({ 'data-testid': 'betterlearn-floating-panel' }).props['data-area']).toBe('knowledge')
   })
 
   test('collapses an open panel on Escape', () => {

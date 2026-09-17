@@ -58,7 +58,9 @@ function run(executable, args, { env = process.env, cwd, input, forwardSignals =
 function environment(config) {
   return { ...process.env, DSH_HOME: config.dshHome, PYTHONPATH: join(config.packageRoot, 'python'),
     NOBEI_PHASE1C_PYTHON_EXECUTABLE: config.python, NOBEI_PHASE1C_DATA_ROOT: config.dataRoot,
-    NOBEI_PHASE1C_OWNERSHIP_TOKEN: config.ownershipToken }
+    NOBEI_PHASE1C_OWNERSHIP_TOKEN: config.ownershipToken,
+    BETTERLEARN_QUIZ_PYTHON_EXECUTABLE: config.quizPythonExecutable,
+    BETTERLEARN_QUIZ_ENV_FILE: config.quizEnvFile, BETTERLEARN_QUIZ_DATA_ROOT: config.quizDataRoot }
 }
 async function saveConfig(home, config) {
   const target = join(home, 'config.json')
@@ -70,6 +72,8 @@ async function saveConfig(home, config) {
 async function loadConfig(home) {
   const config = JSON.parse(await readFile(join(home, 'config.json'), 'utf8'))
   if (config.kind !== 'betterlearn-local-v1' || !config.ownershipToken || !isAbsolute(config.dataRoot)) throw new Error('Invalid BetterLearn configuration.')
+  const quizPaths = [config.quizPythonExecutable, config.quizEnvFile, config.quizDataRoot]
+  if (quizPaths.some(value => value !== undefined) && !quizPaths.every(value => typeof value === 'string' && isAbsolute(value))) throw new Error('Invalid quiz configuration: all three paths must be absolute or omitted.')
   return config
 }
 async function stagePackage(home, tarball) {
@@ -84,6 +88,27 @@ async function stagePackage(home, tarball) {
   return packageRoot
 }
 const pipArgs = packageRoot => ['-m', 'pip', 'install', '--disable-pip-version-check', '-r', join(packageRoot, 'python', 'requirements-phase1.lock')]
+// The quiz service has an independent dependency graph and persistent data directory.
+async function prepareQuiz(home, config, packageRoot) {
+  const quizPythonExecutable = config.quizPythonExecutable ?? join(home, 'quiz-venv', 'bin', 'python')
+  const quizEnvFile = config.quizEnvFile ?? join(home, 'quiz.env')
+  const quizDataRoot = config.quizDataRoot ?? join(home, 'quiz-data')
+  for (const file of ['requirements.txt', 'run_managed.py', 'app/main.py', '.env.example']) await access(join(packageRoot, 'services', 'quiz', file))
+  await mkdir(quizDataRoot, { recursive: true, mode: 0o700 })
+  const template = await readFile(join(packageRoot, 'services', 'quiz', '.env.example'), 'utf8')
+  try {
+    await writeFile(quizEnvFile, template.replace(/^JWT_SECRET=.*$/m, `JWT_SECRET=${randomBytes(32).toString('hex')}`), { flag: 'wx', mode: 0o600 })
+  } catch (error) { if (error.code !== 'EEXIST') throw error }
+  await chmod(quizEnvFile, 0o600)
+  const commands = []
+  try { await access(quizPythonExecutable, constants.X_OK) } catch (error) {
+    if (error.code !== 'ENOENT') throw error
+    if (config.quizPythonExecutable) throw new Error('Configured quiz Python is missing; restore that environment before upgrading.')
+    commands.push([config.python, '-m', 'venv', join(home, 'quiz-venv')])
+  }
+  commands.push([quizPythonExecutable, '-m', 'pip', 'install', '--disable-pip-version-check', '-r', join(packageRoot, 'services', 'quiz', 'requirements.txt')])
+  return { config: { ...config, quizPythonExecutable, quizEnvFile, quizDataRoot }, commands }
+}
 const addArgs = packageFile => ['plugin', '--profile', PROFILE, 'add', packageFile]
 const maintenanceArgs = (command, config, extra) => ['-m', 'nobei_core.maintenance', command, '--data-root', config.dataRoot, ...extra]
 
@@ -121,7 +146,10 @@ export async function main(argv = process.argv.slice(2)) {
     if (isNew) await run(python, ['-c', "import os; from nobei_core.ownership import initialize_owned_root; initialize_owned_root(os.environ['NOBEI_PHASE1C_DATA_ROOT'], os.environ['NOBEI_PHASE1C_OWNERSHIP_TOKEN'])"], { env })
     if (isNew) await saveConfig(home, config)
     if (isNew) await run(python, ['-c', "import os; from nobei_core.database import Phase1Database; db = Phase1Database.open(os.environ['NOBEI_PHASE1C_DATA_ROOT'], os.environ['NOBEI_PHASE1C_OWNERSHIP_TOKEN']); db.close()"], { env })
+    const quiz = await prepareQuiz(home, config, packageRoot)
+    config = quiz.config
     await locked(config, [
+      ...quiz.commands,
       ...(!isNew ? [[python, ...pipArgs(packageRoot)]] : []),
       [dsh, ...addArgs(`@deepseek-ai/dsh-base@${config.dshVersion}`)],
       [dsh, ...addArgs(`@deepseek-ai/dsh-web-app@${config.dshVersion}`)],
@@ -143,12 +171,14 @@ export async function main(argv = process.argv.slice(2)) {
     const packageRoot = await stagePackage(home, options.package)
     await mkdir(join(home, 'backups'), { recursive: true })
     const backup = join(home, 'backups', `before-upgrade-${Date.now()}-${randomUUID()}.sqlite`)
-    await locked(config, [
+    const quiz = await prepareQuiz(home, config, packageRoot)
+    await locked(quiz.config, [
       [config.python, ...maintenanceArgs('backup', config, ['--to', backup])],
       [config.python, ...pipArgs(packageRoot)],
+      ...quiz.commands,
       [config.dsh, ...addArgs(resolve(options.package))],
     ])
-    await saveConfig(home, { ...config, packageRoot, packageFile: resolve(options.package) })
+    await saveConfig(home, { ...quiz.config, packageRoot, packageFile: resolve(options.package) })
     console.log(`Upgrade complete. Previous data backup: ${backup}`)
   } else if (command === 'uninstall') {
     await locked(config, [[config.dsh, 'plugin', '--profile', PROFILE, 'remove', NAME]])

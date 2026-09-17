@@ -16,7 +16,7 @@ export type RunHistoryStatus =
 
 export interface RunHistorySummary {
   runId: string
-  sourceType: 'document' | 'dsh_conversation'
+  sourceType: 'document' | 'dsh_conversation' | 'knowledge_base'
   sourceLabel: string
   status: RunHistoryStatus
   stage: string
@@ -254,6 +254,7 @@ export interface DocumentPreviewTextInput {
     | 'text/markdown'
     | 'application/pdf'
     | 'application/vnd.betterlearn.dsh-conversation+markdown'
+    | 'application/vnd.betterlearn.knowledge-base+markdown'
   text: string
 }
 
@@ -283,9 +284,47 @@ export interface DshConversationPreview {
   extractionPlan: ExtractionPlan
 }
 
+export interface DshConversationImportRequest {
+  sessionIds: string[]
+  expectedDigest: string
+  modelSelection: ModelSelectionSnapshot
+}
+
+export interface KnowledgeBaseDocumentSummary {
+  docId: string
+  fileName: string
+  fileType: string
+  fileSize: number
+  status: 'processing' | 'ready' | 'failed'
+  chunkCount: number
+  errorMessage?: string
+  createdAt: string
+}
+
+export interface KnowledgeBasePreview {
+  docIds: string[]
+  filename: string
+  mediaType: 'application/vnd.betterlearn.knowledge-base+markdown'
+  text: string
+  contentDigest: string
+  documentCount: number
+  characterCount: number
+  byteSize: number
+  extractionPlan: ExtractionPlan
+}
+
+export interface KnowledgeBaseImportRequest {
+  docIds: string[]
+  expectedDigest: string
+  modelSelection: ModelSelectionSnapshot
+}
+
 export interface ClientApi {
   previewDocument?(input: DocumentPreviewRequest, signal?: AbortSignal): Promise<DocumentPreview>
   previewDshConversations(sessionIds: string[], signal?: AbortSignal): Promise<DshConversationPreview>
+  listKnowledgeBaseDocuments(signal?: AbortSignal): Promise<{ documents: KnowledgeBaseDocumentSummary[]; configured?: boolean }>
+  previewKnowledgeBase(docIds: string[], signal?: AbortSignal): Promise<KnowledgeBasePreview>
+  importKnowledgeBase(input: KnowledgeBaseImportRequest, signal?: AbortSignal): Promise<GenerationLaunch>
   watchRun?(runId: string, onChange: () => void, onProgress?: (progress: GenerationProgress) => void): () => void
   getProgress?(runId: string, signal?: AbortSignal): Promise<GenerationProgress | null>
   listRuns(signal?: AbortSignal): Promise<RunHistoryResult>

@@ -4,11 +4,8 @@ import type {
   SessionListState,
 } from '@deepseek-ai/dsh-client-runtime/client'
 
-export interface DshConversationSummary {
-  sessionId: string
-  title: string
-  updatedAt: number
-}
+import type { DshConversationSummary } from './conversation-summary.js'
+export type { DshConversationSummary } from './conversation-summary.js'
 
 export function selectableDshConversations(
   state: Pick<SessionListState, 'ids' | 'byId'>,

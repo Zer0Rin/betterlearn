@@ -16,5 +16,5 @@ describe('product schema package verification', () => {
     await expect(verifyProductSchemaPackage()).resolves.toMatchObject({
       schemas: ['001_product.sql', '002_learning.sql'],
     })
-  })
+  }, 15000)
 })
