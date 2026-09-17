@@ -1,3 +1,4 @@
+import { AppearanceSettings, type GlassAppearance } from './AppearanceSettings.js'
 import { useEffect, useState, type FormEvent } from 'react'
 
 type Connection = { baseUrl: string; model: string; apiKeySet: boolean }
@@ -27,7 +28,7 @@ export async function requestJson<T>(fetcher: typeof fetch, url: string, init?: 
   }
   return response.json() as Promise<T>
 }
-export function Settings({ fetcher = globalThis.fetch, onSaved }: { fetcher?: typeof fetch; onSaved(): void | Promise<void> }) {
+export function Settings({ fetcher = globalThis.fetch, onSaved, appearance }: { fetcher?: typeof fetch; onSaved(): void | Promise<void>; appearance?: GlassAppearance }) {
   const [settings,setSettings] = useState<PublicSettings>()
   const [secrets,setSecrets] = useState<Partial<Record<Capability,string>>>({})
   const [error,setError] = useState('')
@@ -57,7 +58,9 @@ export function Settings({ fetcher = globalThis.fetch, onSaved }: { fetcher?: ty
     finally { setBusy(false) }
   }
   return <section className="standalone-settings" aria-label="模型与能力设置">
-    <header className="standalone-page-heading"><h1>模型与能力设置</h1><span>密钥保存在本机，页面只显示配置状态。保存不会调用模型。</span></header>
+    <header className="standalone-page-heading"><h1>{appearance ? '设置' : '模型与能力设置'}</h1><span>{appearance ? '让工作台更适合你的习惯。' : '密钥保存在本机，页面只显示配置状态。保存不会调用模型。'}</span></header>
+    {appearance && <AppearanceSettings {...appearance}/>}
+    {appearance && <header className="standalone-model-heading"><h2>模型与能力</h2><p>密钥保存在本机，保存配置不会调用模型。</p></header>}
     {error && <p role="alert">{error}<button type="button" onClick={() => setRevision(n=>n+1)}>重新加载设置</button></p>}
     {!settings ? <p role="status">正在读取设置…</p> : <form onSubmit={submit}>
       <fieldset disabled={busy} className="standalone-settings-fields">

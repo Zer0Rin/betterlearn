@@ -113,6 +113,7 @@ export function LearningBookshelf({
           </button>}
         </div>}
       </header>
+      {desktop && books.length > 0 && <p className="betterlearn-library__intro">把整理过的知识，变成自己的理解。选择一本学习书，继续学习。</p>}
       {storageWarning && <p className="betterlearn-library__warning">{storageWarning}</p>}
       {books.length === 0 ? (
         <section className="betterlearn-library__empty">
@@ -130,6 +131,7 @@ export function LearningBookshelf({
               <button type="button" className="betterlearn-library__book"
                 data-testid={`learning-book-${book.bookId}`}
                 data-new={book.bookId === newBookId ? 'true' : 'false'}
+                title={book.title}
                 aria-label={desktop ? `${book.title}，${book.points.length} 个知识点，${book.progress
                   ? `已完成 ${book.progress.completed} / ${book.progress.total}，掌握度 ${book.progress.mastery}%`
                   : book.bookId === newBookId ? '刚刚创建' : '尚未开始'}，打开学习书` : undefined}

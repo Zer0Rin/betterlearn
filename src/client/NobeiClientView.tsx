@@ -59,10 +59,13 @@ export function NobeiWorkspace({
   }, [api, historyOpen, historyReload, workspace.currentRunId, workspace.run?.revision])
   const activeModel = workspace.run?.modelSelection ?? workspace.modelSelection
   const unavailableMessage = workspace.serviceUnavailable ? workspaceCopy.unavailable : undefined
+  const workspaceMessage = standalone && workspace.message === '无法读取 DSH 当前模型，请重试。'
+    ? '请先在设置中配置文本模型，再重试知识提取。'
+    : workspace.message
   const operationError = unavailableMessage
     ?? (workspace.screen === 'import' || workspace.message === workspaceCopy.operationFailed
       || workspace.message === workspaceCopy.reviewUnconfirmed
-      ? workspace.message
+      ? workspaceMessage
       : undefined)
   return (
     <div className="nobei-client-layout" data-history-open={historyOpen ? 'true' : 'false'}>
@@ -106,7 +109,7 @@ export function NobeiWorkspace({
           onUpdate={workspace.updateKnowledgePoint} onReset={workspace.reset}
           onOrganizeLearningBook={onOrganizeLearningBook} />}
       </div>
-      <p className="nobei-client__live-status" aria-live="polite">{workspace.message ?? unavailableMessage ?? ''}</p>
+      <p className="nobei-client__live-status" aria-live="polite">{workspaceMessage ?? unavailableMessage ?? ''}</p>
       </main>
     </div>
   )

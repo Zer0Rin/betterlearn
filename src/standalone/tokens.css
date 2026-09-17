@@ -1,0 +1,74 @@
+/* Neutral working surfaces; #1769FF actions, deep blue anchors, pale blue selection. */
+:root {
+  --neutral-0: #ffffff;
+  --neutral-50: #f7f8fa;
+  --neutral-100: #f0f2f5;
+  --neutral-200: #e1e5ec;
+  --neutral-400: #8a94a5;
+  --neutral-600: #596273;
+  --neutral-900: #171c26;
+  --blue-50: #edf3ff;
+  --blue-300: #adc7ff;
+  --blue-500: #1769ff;
+  --blue-600: #1056dc;
+  --blue-700: #124bbf;
+  --blue-900: #002fa7;
+  --blue-100: #e1ebff;
+  --color-accent-text: var(--blue-700);
+  --color-book-cover-deep: var(--blue-900);
+  --color-book-cover-solid: var(--blue-500);
+  --color-book-cover-subtle: var(--blue-50);
+  --color-book-cover-soft: var(--blue-100);
+  --color-book-cover-text: var(--blue-900);
+  --color-bg-desktop: #eef1f7;
+  --color-bg-page: var(--neutral-50);
+  --color-bg-surface: var(--neutral-0);
+  --color-bg-sunken: var(--neutral-100);
+  --color-text-primary: var(--neutral-900);
+  --color-text-secondary: var(--neutral-600);
+  --color-text-on-accent: var(--neutral-0);
+  --color-border: var(--neutral-400);
+  --color-separator: var(--neutral-200);
+  --color-focus: var(--blue-500);
+  --color-accent-subtle: var(--blue-50);
+  --color-accent-border: var(--blue-300);
+  --color-accent-solid: var(--blue-500);
+  --color-accent-solid-hover: var(--blue-600);
+  --color-success-text: var(--blue-700);
+  --color-success-bg: var(--blue-50);
+  --color-success-border: var(--blue-300);
+  --color-danger-text: #a03e39;
+  --color-danger-bg: #fff3f1;
+  --color-danger-border: #d5a09a;
+  --color-warning-text: var(--neutral-600);
+  --color-warning-bg: var(--neutral-50);
+  --color-warning-border: var(--neutral-200);
+  --font-ui:
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    "PingFang SC",
+    "Microsoft YaHei",
+    sans-serif;
+  --text-caption: 12px;
+  --text-body: 14px;
+  --text-section: 16px;
+  --text-title: 24px;
+  --radius-control: 6px;
+  --radius-panel: 10px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --nobei-paper: var(--color-bg-page);
+  --nobei-surface: var(--color-bg-surface);
+  --nobei-ink: var(--color-text-primary);
+  --nobei-muted: var(--color-text-secondary);
+  --nobei-line: var(--color-separator);
+  --nobei-action: var(--color-accent-solid);
+  --nobei-accepted: var(--color-success-text);
+  --nobei-evidence: var(--color-accent-text);
+  --nobei-rejected: var(--color-danger-text);
+}

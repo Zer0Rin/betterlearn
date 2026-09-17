@@ -1,3 +1,5 @@
+import { GlassBackdrop } from './GlassBackdrop.js'
+import { normalizeGlassFrost, readGlassFrost, writeGlassFrost } from './glass-preference.js'
 import { WorkbenchWindow } from './WorkbenchWindow.js'
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { BookOpen, FileText, GraduationCap, History, Layers3, Settings2, ChartNoAxesCombined } from 'lucide-react'
@@ -28,6 +30,12 @@ const navigation = [
 export function StandaloneApp({api, fetcher = globalThis.fetch, storage = window.localStorage}: {
   api?: ClientApi; fetcher?: typeof fetch; storage?: Storage
 }) {
+  const [glassFrost,setGlassFrost] = useState(()=>readGlassFrost(storage))
+  const [glassSaved,setGlassSaved] = useState(true)
+  function changeGlassFrost(value: number) {
+    const next = normalizeGlassFrost(value)
+    setGlassFrost(next); setGlassSaved(writeGlassFrost(storage,next))
+  }
   const clientApi = useMemo(()=>api ?? createClientApi(),[api,fetcher])
   const quizApi = useMemo(()=>createQuizApi({fetch:fetcher}),[fetcher])
   const [area,setArea] = useState<Area>('library')
@@ -151,8 +159,11 @@ export function StandaloneApp({api, fetcher = globalThis.fetch, storage = window
   }
   const activeBook=books.find(book=>book.bookId===activeBookId)
   const title=area==='knowledge'?'知识提取':area==='settings'?'设置':area==='quiz'?'知识库与练习':area==='compose'?'整理学习书':'学习空间'
-  return <WorkbenchWindow storage={storage} title={title}><div className="standalone-app">
+  return <WorkbenchWindow storage={storage} title={title} frost={glassFrost}><div className="standalone-app">
+    <a className="standalone-skip" href="#standalone-content">跳到内容</a>
     <aside className="standalone-sidebar">
+      <GlassBackdrop frost={glassFrost} radius={0}/>
+      <div className="standalone-sidebar-scroll">
       <nav aria-label="主导航">{navigation.map(item=>{
         const selected=area===item.area && (item.area!=='quiz'||quizRoute===item.route)
         return <Fragment key={item.label}>{'group' in item && <p className="standalone-nav-group">{item.group}</p>}<button type="button" title={item.label} aria-label={item.label} aria-current={selected?'page':undefined} onClick={()=>{
@@ -160,6 +171,7 @@ export function StandaloneApp({api, fetcher = globalThis.fetch, storage = window
         }}><item.icon size={17} strokeWidth={1.6}/><span>{item.label}</span>{item.area==='library'&&libraryReady&&<small>{books.length}</small>}</button></Fragment>
       })}</nav>
       <div className="standalone-local"><span><i/>本地空间</span><small title={directory.current?.model}>{directory.current?.model ?? '模型未配置'}</small></div>
+      </div>
     </aside>
     <div className="standalone-main">
       {directory.status!=='loading'&&!directory.current&&<div className="standalone-notice" role="status"><span>{modelError || '配置文本模型后，即可提取知识和生成练习。已有学习数据仍可浏览。'}</span><button type="button" onClick={()=>setArea('settings')}>配置文本模型</button></div>}
@@ -168,8 +180,8 @@ export function StandaloneApp({api, fetcher = globalThis.fetch, storage = window
         setLibraryReady(false);setDraft(undefined);setActiveBookId(undefined);setArea('library');setLoadRevision(n=>n+1)
       }}>重新加载最新学习书</button> : <button type="button" disabled={pendingSaves>0} onClick={()=>persist(booksRef.current)}>重试保存学习书</button>}</div>}
       {pendingSaves>0&&<p className="standalone-saving" role="status">正在保存学习书…</p>}
-      <div className="standalone-content" data-area={area}>
-        {area==='settings'&&<Settings fetcher={fetcher} onSaved={async()=>{await refreshModel()}}/>}
+      <div id="standalone-content" tabIndex={-1} className="standalone-content" data-area={area}>
+        {area==='settings'&&<Settings appearance={{frost:glassFrost,onChange:changeGlassFrost,saved:glassSaved}} fetcher={fetcher} onSaved={async()=>{await refreshModel()}}/>}
         {area==='quiz'&&<QuizWorkspace key={quizRoute} api={quizApi} storage={storage} initialRoute={quizRoute} onExit={()=>setArea('library')} onOpenExtraction={()=>setArea('knowledge')}/>}
         {(area==='library'||area==='compose')&&!libraryReady&&<section className="standalone-empty"><h1>你的学习空间</h1><p role={loadError?'alert':'status'}>{loadError||'正在读取学习书…'}</p>{loadError&&<button onClick={()=>setLoadRevision(n=>n+1)}>重新加载学习书</button>}</section>}
         {area==='library'&&libraryReady&&<LearningBookshelf presentation="desktop" books={books} newBookId={newBookId} onOpenBook={book=>{setActiveBookId(book.bookId);setArea('learning')}}
@@ -180,6 +192,7 @@ export function StandaloneApp({api, fetcher = globalThis.fetch, storage = window
         {area==='learning'&&activeBook&&<LearningSpace book={activeBook} api={clientApi} leftOpen={layout.leftOpen} rightOpen={layout.rightOpen}
           onLeftOpenChange={open=>updateLayout('leftOpen',open)} onRightOpenChange={open=>updateLayout('rightOpen',open)} onCourseChange={updateCourse} onExit={()=>setArea('library')}/>}
         <div hidden={area!=='knowledge'} className="standalone-extraction">
+          <header className="standalone-page-heading"><h1>知识提取</h1><span>从资料中提取知识点，逐条核对原文证据。</span></header>
           <div className="standalone-extraction-toolbar"><span>原文 · 证据 · 知识</span><button type="button" aria-expanded={historyOpen} onClick={()=>setHistoryOpen(!historyOpen)}>{historyOpen?'收起提取历史':'提取历史'}</button></div>
           <NobeiWorkspace standalone sessionId="standalone" api={clientApi} storage={storage} ordinarySession
             modelDirectoryState={directory} readModelDirectory={readModelDirectory} loadModelSelection={loadModelSelection} historyOpen={historyOpen}
