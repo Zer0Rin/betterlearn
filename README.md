@@ -1,6 +1,6 @@
-# BetterLearn · bl
+# BetterLearn
 
-[![CI](https://github.com/Zer0Rin/bl/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Zer0Rin/bl/actions/workflows/ci.yml)
+[![CI](https://github.com/Zer0Rin/betterlearn/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Zer0Rin/betterlearn/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 **把读过的资料，变成真正掌握的知识。**
@@ -8,6 +8,16 @@
 BetterLearn 是本机运行、单人使用的学习工作台：从资料中提取知识、核对原文证据，整理成学习书，再通过练习、复习和模拟考试检验理解。独立 Web 与 Electron 桌面版共用业务和本地数据，**无需 DSH 或 MySQL**。
 
 [快速开始](#快速开始) · [功能展示](#功能展示) · [模型与费用](#模型与费用) · [使用指南](docs/learning-workflows.md) · [桌面说明](docs/desktop.md) · [MCP 与插件](docs/plugins.md)
+
+## 工程重点
+
+### MCP 服务与客户端集成
+
+`dist/standalone/mcp.mjs` 通过 stdio 提供 MCP 服务，连接已经运行的 BetterLearn 本机服务，复用同一套数据、模型配置和任务状态，不另起业务后端。提供 Codex / Claude Code 插件包装，支持读取学习资料与历史，以及显式发起生成任务；生成请求通过稳定的请求标识去重。插件验证使用真实 MCP SDK，检查跨客户端去重、共享历史和密钥不外泄。
+
+### 模型调用成本控制
+
+上传与向量化分离：上传只保存本地原件，用户点击“开始向量化”后才调用模型，并在操作处提示可能产生费用。后端原子领取文档任务，重复请求不重复启动；失败、刷新和重启均不自动发起向量化。知识提取先预览调用计划，额外生成需明确操作，AI 报告也由用户按需触发。检索时的查询向量调用仍可能产生费用。
 
 ## 功能展示
 
@@ -76,7 +86,7 @@ flowchart LR
 
 ## 快速开始
 
-仓库名为 **bl**，应用名称和默认数据目录仍为 BetterLearn / `~/.betterlearn-web`。
+默认数据目录为 `~/.betterlearn-web`。
 
 ### 环境要求
 
@@ -90,8 +100,8 @@ flowchart LR
 ### Electron 桌面版
 
 ```bash
-git clone https://github.com/Zer0Rin/bl.git
-cd bl
+git clone https://github.com/Zer0Rin/betterlearn.git
+cd betterlearn
 corepack pnpm install --frozen-lockfile
 corepack pnpm start:desktop
 ```
@@ -129,7 +139,7 @@ node dist/standalone/betterlearn.mjs start --home "$HOME/.betterlearn-web"
 先启动 BetterLearn，再将下面的 stdio 命令接入客户端：
 
 ```bash
-node /absolute/path/to/bl/dist/standalone/mcp.mjs \
+node /absolute/path/to/betterlearn/dist/standalone/mcp.mjs \
   --home /absolute/path/to/.betterlearn-web
 ```
 
@@ -170,7 +180,15 @@ corepack pnpm test:desktop
 corepack pnpm test:plugins
 ```
 
-自动测试使用临时数据库、真实本地服务与模拟模型，不调用收费模型。桌面测试打开真实 Electron，覆盖首次启动、生成、考试草稿恢复、手动向量化与重启行为。
+自动测试使用临时数据库、真实本地服务与模拟模型，不调用收费模型。
+
+| 验证命令 | 验证范围 |
+| --- | --- |
+| `test` | Web 界面、产品 API、任务协调、真实服务端到端流程 |
+| `test:core` | 提取状态机、证据校验、审核事务与课程持久化 |
+| `test:quiz` | 知识库、向量化、判分、目标、考试与数据库迁移 |
+| `test:desktop` | **打开真实 Electron**，验证首次启动、生成、考试草稿恢复、手动向量化与重启 |
+| `test:plugins` | 使用真实 MCP SDK 验证两套插件配置、共享后端、跨客户端去重与密钥隔离 |
 
 | 路径 | 内容 |
 | --- | --- |
