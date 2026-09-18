@@ -36,3 +36,17 @@ export function glassParameters(frost: number): { blur: number; tint: number; re
     saturation: 1.55 - 0.45 * amount,
   }
 }
+
+export const COMPONENT_OPACITY_KEY = 'betterlearn:component-opacity:v1'
+export const DEFAULT_COMPONENT_OPACITY = 85
+export function readComponentOpacity(storage: Pick<Storage, 'getItem'>): number {
+  try {
+    const saved = JSON.parse(storage.getItem(COMPONENT_OPACITY_KEY) ?? 'null')
+    return saved?.version === 1 && typeof saved.opacity === 'number' && Number.isFinite(saved.opacity)
+      ? normalizeGlassFrost(saved.opacity) : DEFAULT_COMPONENT_OPACITY
+  } catch { return DEFAULT_COMPONENT_OPACITY }
+}
+export function writeComponentOpacity(storage: Pick<Storage, 'setItem'>, opacity: number): boolean {
+  try { storage.setItem(COMPONENT_OPACITY_KEY, JSON.stringify({version:1, opacity:normalizeGlassFrost(opacity)})); return true }
+  catch { return false }
+}

@@ -1,0 +1,18 @@
+{
+  "knowledge_point_id": "kp_aaaaaaaaaaaaaaaaaaaa",
+  "type": "concept",
+  "title": "来源 🌱",
+  "statement": "保留“原文”与换行\n版本。",
+  "evidence": {
+    "kind": "quote",
+    "quote": "原文 🌱",
+    "contextBefore": "前文",
+    "contextAfter": "后文",
+    "textStart": 0,
+    "textEnd": 4
+  },
+  "schema_version": 1,
+  "course_id": "course_bbbbbbbbbbbbbbbbbbbb",
+  "unit_id": "unit_cccccccccccccccccccc",
+  "content_version": "a2fb357b5aaa2fb61724a571519d8d021527d10556edc7ed60c813a339a04b8b"
+}

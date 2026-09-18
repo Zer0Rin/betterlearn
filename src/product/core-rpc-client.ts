@@ -19,6 +19,10 @@ import type {
   HelloResult,
   ImportAndPrepareParams,
   KnowledgePointList,
+  LearningReviewParams,
+  LearningReviewQueueParams,
+  LearningReviewQueue,
+  LearningReviewResult,
   LearningAttemptParams,
   LearningAttemptResult,
   LearningCourseDeleteResult,
@@ -169,6 +173,14 @@ export class FixedCoreRpcClient {
     return this.#request(
       'learning_courses.delete', params, CORE_WRITE_RPC_TIMEOUT_MS, signal,
     ) as Promise<LearningCourseDeleteResult>
+  }
+
+  listLearningReviews(params: LearningReviewQueueParams, signal?: AbortSignal): Promise<LearningReviewQueue> {
+    return this.#request('learning_reviews.queue', params, CORE_READ_RPC_TIMEOUT_MS, signal) as Promise<LearningReviewQueue>
+  }
+
+  submitLearningReview(params: LearningReviewParams, signal?: AbortSignal): Promise<LearningReviewResult> {
+    return this.#request('learning_reviews.submit', params, CORE_WRITE_RPC_TIMEOUT_MS, signal) as Promise<LearningReviewResult>
   }
 
   submitLearningAttempt(params: LearningAttemptParams, signal?: AbortSignal): Promise<LearningAttemptResult> {

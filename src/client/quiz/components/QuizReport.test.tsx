@@ -7,30 +7,25 @@ const quiz: QuizData = { quiz_id: 'quiz1', title: 'one', summary: '', questions:
   { id: 'q2', stem: 'Question 2', type: 'single', options: [{ key:'A', text:'one' },{ key:'B', text:'two' }], answer:['A'], explanation:'explanation', knowledge_point:'point', difficulty:'easy' },
 ] }
 const record = (question_id: string, is_correct: boolean): AnswerRecord => ({ question_id, selected_answers:['A'], is_correct, duration_ms: 1000 })
-function render(records: AnswerRecord[]) {
+function render(records: AnswerRecord[], score?: {accuracy:number; correct_count:number; total_questions:number; xp_gain:number}) {
   let renderer: ReactTestRenderer
-  act(() => { renderer = create(<QuizReport quiz={quiz} records={records} onRestart={() => {}}/>) })
+  act(() => { renderer = create(<QuizReport quiz={quiz} records={records} score={score} onRestart={() => {}}/>) })
   return renderer!
 }
-const texts = (node: { children?: unknown }): string[] =>
-  (Array.isArray(node.children) ? node.children : []).flatMap(c => typeof c === 'string' ? [c] : c && typeof c === 'object' && 'children' in c ? texts(c as { children?: unknown }) : [])
-const text = (renderer: ReactTestRenderer) => texts(renderer.root.findAllByType('h1')[0]).join('')
-const tags = (renderer: ReactTestRenderer) => renderer.root.findAll(n => typeof n.props.className === 'string' && /zl-tag|zl-xp-badge/.test(n.props.className)).map(n => texts(n).join(''))
-
-it('shows the measured accuracy in the heading', () => {
-  expect(text(render([record('q1', true), record('q2', true)]))).toBe('正确率 100%')
-  expect(text(render([record('q1', true), record('q2', false)]))).toBe('正确率 50%')
-  expect(text(render([record('q1', false), record('q2', false)]))).toBe('正确率 0%')
+const text = (renderer: ReactTestRenderer) => JSON.stringify(renderer.toJSON())
+it('uses authoritative scores and preserves zero XP on repeated practice', () => {
+  const view=render([record('q1',true),record('q2',true)],{accuracy:0,correct_count:0,total_questions:2,xp_gain:0})
+  expect(view.root.findByProps({className:'zl-xp-badge'}).children.join('')).toBe('+0 XP')
+  expect(view.root.findByType('h1').children.join('')).toBe('正确率 0%')
 })
-
-it('shows the correct/wrong tags and the XP gained using the backend rule', () => {
-  const one = tags(render([record('q1', true), record('q2', false)]))
-  expect(one).toContain('答对 1 题')
-  expect(one).toContain('答错 1 题')
-  expect(one).toContain('+12 XP')
-  expect(tags(render([record('q1', true), record('q2', true)]))).toContain('+14 XP')
+it('does not claim an unsubmitted local result is saved or award XP', () => {
+  const view=render([record('q1',true)])
+  expect(view.root.findByType('h1').children.join('')).toBe('尚未交卷')
+  expect(view.root.findAllByProps({className:'zl-xp-badge'})).toHaveLength(0)
 })
-
-it('omits the XP badge when nothing has been answered', () => {
-  expect(tags(render([]))).not.toContain('+10 XP')
+it('shows saved results with an explicit independent AI report action', () => {
+  const view=render([record('q1',false)],{accuracy:0,correct_count:0,total_questions:2,xp_gain:0})
+  expect(text(view)).toContain('成绩已保存')
+  expect(text(view)).toContain('生成 AI 报告')
+  expect(text(view)).not.toContain('当前标签页')
 })

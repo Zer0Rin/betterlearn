@@ -56,6 +56,8 @@ RPC_METHODS = MappingProxyType(
         "learning_courses.get": "get_learning_course",
         "learning_courses.delete": "delete_learning_course",
         "learning_attempts.submit": "submit_learning_attempt",
+        "learning_reviews.queue": "list_learning_reviews",
+        "learning_reviews.submit": "submit_learning_review",
     }
 )
 

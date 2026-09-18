@@ -74,7 +74,7 @@ export interface ProductPluginDependencies {
   createModelSelectionResolver(ctx: Context): ModelSelectionResolver
   createConversationSource(query: SessionQueryEngine): DshConversationSource
   createQuizService(config: ProductPluginConfig, packageRoot: string): QuizServicePort | undefined
-  registerQuizRoutes(ctx: Context, service?: QuizServicePort): () => void
+  registerQuizRoutes(ctx: Context, service?: QuizServicePort, sourceResolver?: Pick<ProductOperations, 'getLearningCourse'>): () => void
   createKnowledgeBaseSource(config: ProductPluginConfig, service?: QuizServicePort): KnowledgeBaseSource | undefined
   createCoordinator(supervisor: CoreSupervisor, adapter: StructuredGenerationAdapter, resolver: ModelSelectionResolver): GenerationCoordinator
   registerRoutes(ctx: Context, state: { readonly state: CoreSupervisor['state'] }, operations: ProductOperations): () => void
@@ -169,7 +169,7 @@ export async function applyProductPlugin(
 
   try {
     conversationSource = dependencies.createConversationSource(ctx.sessionQuery)
-    unregisterQuizRoutes = dependencies.registerQuizRoutes(ctx, quizService)
+    unregisterQuizRoutes = dependencies.registerQuizRoutes(ctx, quizService, operations)
     unregisterRoutes = dependencies.registerRoutes(ctx, state, operations)
     supervisor = dependencies.createSupervisor(ctx, config, contract)
     const adapter = dependencies.createAdapter(ctx, contract, dependencies.packageRoot)

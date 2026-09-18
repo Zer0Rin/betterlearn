@@ -901,6 +901,14 @@ class _MappedCore:
         self.called.append(("submit_learning_attempt", params))
         return {"attempt": {"correct": True}}
 
+    def list_learning_reviews(self, params):
+        self.called.append(("list_learning_reviews", params))
+        return {"items": [], "total": 0}
+
+    def submit_learning_review(self, params):
+        self.called.append(("submit_learning_review", params))
+        return {"attempt": {"correct": True}}
+
     def dangerous(self, params: object) -> dict[str, object]:
         raise AssertionError("arbitrary getattr was called")
 
@@ -950,6 +958,11 @@ def test_dispatcher_maps_run_delete() -> None:
 @pytest.mark.parametrize(
     ("method", "target", "params", "result"),
     (
+        ("learning_reviews.queue", "list_learning_reviews", {}, {"items": [], "total": 0}),
+        ("learning_reviews.submit", "submit_learning_review",
+         {"unitId": "unit_0123456789abcdefabcd", "assessmentId": "asm_0123456789abcdefabcd",
+          "optionId": "opt_answer", "expectedAttemptId": "latt_0123456789abcdefabcd",
+          "idempotencyKey": "idem_0123456789abcdefabcd"}, {"attempt": {"correct": True}}),
         (
             "learning_courses.sync",
             "sync_learning_course",

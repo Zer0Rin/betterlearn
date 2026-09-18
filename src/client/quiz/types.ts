@@ -67,7 +67,36 @@ export interface UserProfile {
   average_accuracy: number
 }
 
+export interface AttemptAnswers {
+  expected_revision: number
+  answer_records: Omit<AnswerRecord, 'is_correct'>[]
+}
+
+export interface AttemptSummary {
+  attempt_id: string
+  quiz_id: string
+  status: 'draft' | 'submitted'
+  revision: number
+  created_at: string
+  submitted_at: string | null
+  total_questions: number | null
+  correct_count: number | null
+  accuracy: number | null
+  xp_gain: number
+}
+export interface PracticeAttempt extends AttemptSummary {
+  title: string
+  questions: Question[]
+  answer_records: (Omit<AnswerRecord, 'is_correct'> & { is_correct: boolean | null })[]
+  report_status: 'not_requested' | 'running' | 'completed' | 'failed'
+  report: ReportData | null
+  report_error: string | null
+}
+
 export interface QuizHistoryItem {
+  status?: 'submitted' | 'unsubmitted'
+  attempt_id?: string | null
+  submitted_at?: string | null
   quiz_id: string
   title: string
   accuracy: number

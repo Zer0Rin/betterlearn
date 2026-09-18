@@ -50,6 +50,12 @@ jobs:
           NOBEI_PHASE1_PYTHON: ${{ steps.setup-python.outputs.python-path }}
         run: pnpm test
 
+      - name: Check and build desktop shell
+        run: pnpm exec tsc -p tsconfig.desktop.json && node scripts/build-desktop.mjs
+
+      - name: Verify plugin packages with real services and fake provider
+        run: pnpm prepare:plugins && node scripts/verify-plugins.mjs
+
       - name: Run Core tests
         run: pnpm test:core
 

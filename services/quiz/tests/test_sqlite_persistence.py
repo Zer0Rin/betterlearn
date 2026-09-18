@@ -6,7 +6,7 @@ import pytest
 
 from app.core import db
 from app.core.config import get_settings
-from app.repositories import user_repository as users, knowledge_repository as docs, quiz_repository as quizzes, task_repository as tasks
+from app.repositories import user_repository as users, knowledge_repository as docs, task_repository as tasks
 
 
 @pytest.mark.asyncio
@@ -20,42 +20,15 @@ async def test_user_document_and_schema(database):
     assert await docs.get_document('doc', user['id'] + 1) is None
     assert len(await docs.list_documents(user['id'])) == 1
     with sqlite3.connect(database) as conn:
-        assert conn.execute('PRAGMA user_version').fetchone()[0] == 1
+        assert conn.execute('PRAGMA user_version').fetchone()[0] == 7
 
 
 @pytest.mark.asyncio
-async def test_report_atomic_idempotent_roundtrip(database):
-    user = await users.create_user('local:report')
-    uid = user['id']
-    await quizzes.save_quiz_session('quiz', uid, '标题', '摘要', 'input', [{'id': 'q1'}])
-    report = {'accuracy': 100, 'advice': 'ok'}
-    results = await asyncio.gather(*(quizzes.save_report_atomic('quiz', uid, [{'question_id': 'q1'}], 1, 1, 100, report, 12) for _ in range(5)))
-    assert results == [report] * 5
-    assert (await users.get_user_by_id(uid))['total_xp'] == 12
-    detail = await quizzes.get_quiz_detail('quiz', uid)
-    assert detail['report'] == report
-    assert detail['answer_records'] == [{'question_id': 'q1'}]
-    assert detail['created_at']
-    items, total = await quizzes.get_user_quiz_list(uid, 1, 10)
-    assert total == 1 and items[0]['accuracy'] == 100
-    await db.close_db()
-    await db.init_db()
-    assert (await quizzes.get_quiz_detail('quiz', uid))['report'] == report
-
-
-@pytest.mark.asyncio
-async def test_foreign_key_and_report_failure_roll_back(database):
-    user = await users.create_user('local:rollback')
-    uid = user['id']
+async def test_foreign_key_failure_rolls_back(database):
+    uid = (await users.create_user('local:rollback'))['id']
     with pytest.raises(sqlite3.IntegrityError):
         await docs.create_document('bad', uid + 100, 'x', 'txt', 1)
-    await quizzes.save_quiz_session('quiz', uid, 'title', '', '', [])
-    with sqlite3.connect(database) as conn:
-        conn.execute("CREATE TRIGGER fail_report BEFORE INSERT ON reports BEGIN SELECT RAISE(ABORT, 'failure'); END")
-    with pytest.raises(sqlite3.IntegrityError):
-        await quizzes.save_report_atomic('quiz', uid, [], 1, 1, 100, {}, 12)
-    assert (await users.get_user_by_id(uid))['total_xp'] == 0
-    assert 'answer_records' not in await quizzes.get_quiz_detail('quiz', uid)
+    assert await docs.list_documents(uid) == []
 
 
 @pytest.mark.asyncio
@@ -85,17 +58,6 @@ async def test_future_schema_refused_without_mutation(database):
         await db.init_db()
     with sqlite3.connect(database) as conn:
         assert conn.execute('PRAGMA user_version').fetchone()[0] == 99
-
-
-@pytest.mark.asyncio
-async def test_report_cannot_claim_other_users_quiz(database):
-    uid = (await users.create_user('owner'))['id']
-    other = (await users.create_user('other'))['id']
-    await quizzes.save_quiz_session('quiz', uid, 'title', '', '', [])
-    with pytest.raises(ValueError, match='当前用户'):
-        await quizzes.save_report_atomic('quiz', other, [], 0, 0, 0, {}, 10)
-    assert (await users.get_user_by_id(other))['total_xp'] == 0
-    assert 'report' not in await quizzes.get_quiz_detail('quiz', uid)
 
 
 @pytest.mark.asyncio

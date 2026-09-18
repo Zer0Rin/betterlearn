@@ -125,6 +125,12 @@ export function createProductOperations(ports: {
     deleteLearningCourse: (courseId, signal) => ports.supervisor
       ? ports.supervisor.withReadyClient(client => client.deleteLearningCourse({ courseId }, signal))
       : Promise.reject(new Error('CORE_UNAVAILABLE')),
+    listLearningReviews: (params, signal) => ports.supervisor
+      ? ports.supervisor.withReadyClient(client => client.listLearningReviews(params, signal))
+      : Promise.reject(new Error('CORE_UNAVAILABLE')),
+    submitLearningReview: (params, signal) => ports.supervisor
+      ? ports.supervisor.withReadyClient(client => client.submitLearningReview(params, signal))
+      : Promise.reject(new Error('CORE_UNAVAILABLE')),
     submitLearningAttempt: (params, signal) => ports.supervisor
       ? ports.supervisor.withReadyClient(client => client.submitLearningAttempt(params, signal))
       : Promise.reject(new Error('CORE_UNAVAILABLE')),

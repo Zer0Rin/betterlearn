@@ -10,12 +10,22 @@ from contextlib import contextmanager
 from pathlib import Path
 import sqlite3
 import threading
+import uuid
+import os
+
+from app.core.attempt_schema import migrate
+from app.core.question_bank_schema import migrate as migrate_bank
+from app.core.question_source_schema import migrate as migrate_sources
+from app.core.source_generation_schema import migrate as migrate_source_generation
+
+from app.core.learning_goal_schema import migrate as migrate_goals
+from app.core.exam_schema import migrate as migrate_exams
 
 from app.core.config import get_settings
 
 _connection: sqlite3.Connection | None = None
 _lock = threading.RLock()
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 7
 
 SCHEMA_STATEMENTS = [
     """CREATE TABLE users (
@@ -71,6 +81,23 @@ SCHEMA_STATEMENTS = [
 ]
 
 
+def backup_database(connection: sqlite3.Connection, path: Path) -> Path:
+    """Take a consistent SQLite backup, including committed WAL contents."""
+    destination = path.with_name(f'{path.name}.pre-v{SCHEMA_VERSION}-{uuid.uuid4().hex}.bak')
+    fd = os.open(destination, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+    os.close(fd)
+    try:
+        backup = sqlite3.connect(destination)
+        try:
+            connection.backup(backup)
+        finally:
+            backup.close()
+    except BaseException:
+        destination.unlink(missing_ok=True)
+        raise
+    return destination
+
+
 async def init_db() -> None:
     global _connection
     with _lock:
@@ -81,6 +108,11 @@ async def init_db() -> None:
         connection = sqlite3.connect(path, isolation_level=None, check_same_thread=False, timeout=5)
         connection.row_factory = sqlite3.Row
         try:
+            version = connection.execute('PRAGMA user_version').fetchone()[0]
+            if version > SCHEMA_VERSION:
+                raise RuntimeError(f'Unsupported quiz database schema version: {version}')
+            if 0 < version < SCHEMA_VERSION:
+                backup_database(connection, path)
             connection.execute('PRAGMA foreign_keys = ON')
             connection.execute('PRAGMA journal_mode = WAL')
             connection.execute('PRAGMA synchronous = FULL')
@@ -91,10 +123,23 @@ async def init_db() -> None:
             if version == 0:
                 for statement in SCHEMA_STATEMENTS:
                     connection.execute(statement)
+            if version < 2:
+                migrate(connection)
+            if version < 3:
+                migrate_bank(connection)
+            if version < 4:
+                migrate_sources(connection)
+            if version < 5:
+                migrate_source_generation(connection)
+            if version < 6:
+                migrate_goals(connection)
+            if version < 7:
+                migrate_exams(connection)
                 connection.execute(f'PRAGMA user_version = {SCHEMA_VERSION}')
             reason = '服务重启中断了处理，请重试'
             connection.execute("UPDATE kb_documents SET status='failed', error_message=? WHERE status='processing'", (reason,))
             connection.execute("UPDATE quiz_tasks SET status='failed', error_message=? WHERE status IN ('pending','running')", (reason,))
+            connection.execute("UPDATE quiz_attempt_reports SET status='failed', error_message=?, updated_at=CURRENT_TIMESTAMP WHERE status='running'", (reason,))
             connection.commit()
         except BaseException:
             connection.rollback()

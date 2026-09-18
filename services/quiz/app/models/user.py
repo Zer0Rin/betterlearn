@@ -42,6 +42,9 @@ class QuizHistoryItem(BaseModel):
     accuracy: float
     question_count: int
     created_at: str
+    attempt_id: str | None = None
+    submitted_at: str | None = None
+    status: str = 'unsubmitted'
 
 
 class QuizHistoryList(BaseModel):
@@ -59,4 +62,6 @@ class QuizDetailResponse(BaseModel):
     questions: list  # raw JSON
     answer_records: Optional[list] = None
     report: Optional[dict] = None
+    attempt_id: str | None = None
+    report_status: str = 'not_requested'
     created_at: str

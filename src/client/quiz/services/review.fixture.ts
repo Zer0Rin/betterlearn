@@ -1,0 +1,2 @@
+import type {ReviewItem} from './review-api.js'
+export const reviewItem:ReviewItem={unitId:'unit_aaaaaaaaaaaaaaaaaaaa',courseId:'course_aaaaaaaaaaaaaaaaaaaa',knowledgePointId:'kp_aaaaaaaaaaaaaaaaaaaa',courseTitle:'生物',title:'光合作用',type:'concept',phase:'review',dueAt:'2026-09-01T00:00:00Z',priority:3,expectedAttemptId:'attempt_aaaaaaaaaaaaaaaaaaaa',assessment:{assessmentId:'assessment_aaaaaaaaaaaaaaaaaaaa',kind:'claim_choice',prompt:'选择准确陈述',options:[{optionId:'option_aaaaaaaaaaaaaaaaaaaa',label:'光能转化为化学能'}],attempt:null},remediation:null}

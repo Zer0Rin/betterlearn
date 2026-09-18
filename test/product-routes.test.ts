@@ -105,6 +105,8 @@ function operations(override: Partial<ProductOperations> = {}): ProductOperation
     syncLearningCourse: vi.fn(async params => ({ courseId, ...params } as any)),
     getLearningCourse: vi.fn(async id => ({ courseId: id } as any)),
     deleteLearningCourse: vi.fn(async id => ({ courseId: id, deleted: true as const })),
+    listLearningReviews: vi.fn(async () => ({ items: [], total: 0, limit: 20, offset: 0, asOf: '' })),
+    submitLearningReview: vi.fn(async params => ({ attempt: { ...params, correct: true } } as any)),
     submitLearningAttempt: vi.fn(async params => ({ attempt: { ...params, correct: true } } as any)),
     ...override,
   }
@@ -717,4 +719,22 @@ describe('knowledge base routes', () => {
     expect(listMethod).toMatchObject({ status: 405, body: { error: { code: 'METHOD_NOT_ALLOWED' } } })
     expect(listMethod.headers.allow).toBe('GET')
   })
+})
+
+test('review routes validate pagination and stale-client token before dispatch', async () => {
+ const ops=operations({listLearningReviews:vi.fn(async()=>({items:[],total:0,limit:20,offset:0,asOf:'2026-09-18T00:00:00Z'})),submitLearningReview:vi.fn(async()=>({attempt:{correct:true}} as any))})
+ const base=await listen('READY',ops)
+ const url=`http://127.0.0.1:${base.port}`
+ const queue=await fetch(url+'/nobei/v1/learning-reviews?limit=10&offset=0')
+ expect(queue.status).toBe(200)
+ expect(ops.listLearningReviews).toHaveBeenCalledWith({limit:10,offset:0})
+ for(const suffix of ['?limit=101','?limit=1&limit=2','?now=2099','?courseId=bad']) {
+  expect((await fetch(url+'/nobei/v1/learning-reviews'+suffix)).status).toBe(400)
+ }
+ const unitId=`unit_${'1'.repeat(20)}`
+ const command={assessmentId,optionId,expectedAttemptId:`latt_${'2'.repeat(20)}`,idempotencyKey}
+ const path=url+`/nobei/v1/learning-reviews/${unitId}/attempts`
+ expect((await fetch(path,{method:'POST',headers:{origin:url,'content-type':'application/json'},body:JSON.stringify(command)})).status).toBe(200)
+ expect(ops.submitLearningReview).toHaveBeenCalledWith({unitId,...command})
+ expect((await fetch(path,{method:'POST',headers:{origin:url,'content-type':'application/json'},body:JSON.stringify({...command,expectedAttemptId:'bad'})})).status).toBe(400)
 })

@@ -27,6 +27,10 @@ import type {
   EventList,
   ImportAndPrepareParams,
   KnowledgePointList,
+  LearningReviewParams,
+  LearningReviewQueueParams,
+  LearningReviewQueue,
+  LearningReviewResult,
   LearningAttemptParams,
   LearningAttemptResult,
   LearningCourseDeleteResult,
@@ -62,6 +66,8 @@ export interface ProductOperations {
   syncLearningCourse(params: LearningCourseSyncParams, signal?: AbortSignal): Promise<LearningCourseSnapshot>
   getLearningCourse(courseId: string, signal?: AbortSignal): Promise<LearningCourseSnapshot>
   deleteLearningCourse(courseId: string, signal?: AbortSignal): Promise<LearningCourseDeleteResult>
+  listLearningReviews(params: LearningReviewQueueParams, signal?: AbortSignal): Promise<LearningReviewQueue>
+  submitLearningReview(params: LearningReviewParams, signal?: AbortSignal): Promise<LearningReviewResult>
   submitLearningAttempt(params: LearningAttemptParams, signal?: AbortSignal): Promise<LearningAttemptResult>
 }
 
@@ -88,6 +94,8 @@ type RouteMatch =
   | { kind: 'review'; method: 'POST'; candidateId: string }
   | { kind: 'knowledge-points'; method: 'GET'; runId: string }
   | { kind: 'knowledge-point-update'; method: 'PATCH'; knowledgePointId: string }
+  | { kind: 'learning-review-queue'; method: 'GET'; params: LearningReviewQueueParams | undefined }
+  | { kind: 'learning-review-submit'; method: 'POST'; unitId: string }
   | { kind: 'learning-course-sync'; method: 'POST' }
   | { kind: 'learning-course'; method: 'GET' | 'DELETE'; courseId: string }
   | { kind: 'learning-attempt'; method: 'POST'; assessmentId: string }
@@ -123,6 +131,9 @@ function matchRoute(url: URL, requestMethod?: string): RouteMatch | undefined {
     return { kind: 'knowledge-base-import', method: 'POST' }
   }
   if (url.pathname === '/nobei/v1/runs' && url.search === '') return { kind: 'runs', method: 'GET' }
+  if (url.pathname === '/nobei/v1/learning-reviews') return { kind: 'learning-review-queue', method: 'GET', params: parseReviewQueue(url.searchParams) }
+  const reviewMatch = /^\/nobei\/v1\/learning-reviews\/([^/]+)\/attempts$/.exec(url.pathname)
+  if (reviewMatch && url.search === '') return { kind: 'learning-review-submit', method: 'POST', unitId: reviewMatch[1] }
   if (url.pathname === '/nobei/v1/learning-courses' && url.search === '') {
     return { kind: 'learning-course-sync', method: 'POST' }
   }
@@ -173,8 +184,35 @@ function exactObject(value: unknown, keys: readonly string[]): value is Record<s
   return actual.length === expected.length && actual.every((key, index) => key === expected[index])
 }
 
-function resourceId(value: string, prefix: 'job' | 'cand' | 'kp' | 'course' | 'asm'): boolean {
+function resourceId(value: string, prefix: 'job' | 'cand' | 'kp' | 'course' | 'asm' | 'unit' | 'latt'): boolean {
   return new RegExp(`^${prefix}_[0-9a-f]{20}$`).test(value)
+}
+
+function parseReviewQueue(params: URLSearchParams): LearningReviewQueueParams | undefined {
+  const result: LearningReviewQueueParams = {}
+  const seen = new Set<string>()
+  for (const [key, value] of params) {
+    if (seen.has(key)) return undefined
+    seen.add(key)
+    if (key === 'courseId') {
+      if (!resourceId(value, 'course')) return undefined
+      result.courseId = value
+    } else if (key === 'limit' || key === 'offset') {
+      if (!/^(0|[1-9][0-9]{0,6})$/.test(value)) return undefined
+      const n = Number(value)
+      if (key === 'limit' ? n < 1 || n > 100 : n > 1000000) return undefined
+      result[key] = n
+    } else return undefined
+  }
+  return result
+}
+
+function parseLearningReview(value: unknown, unitId: string): LearningReviewParams | undefined {
+  if (!resourceId(unitId, 'unit') || !exactObject(value, ['assessmentId', 'optionId', 'expectedAttemptId', 'idempotencyKey'])) return undefined
+  if (typeof value.assessmentId !== 'string' || !resourceId(value.assessmentId, 'asm')
+    || typeof value.expectedAttemptId !== 'string' || !resourceId(value.expectedAttemptId, 'latt')) return undefined
+  const attempt = parseLearningAttempt({ optionId: value.optionId, idempotencyKey: value.idempotencyKey }, value.assessmentId)
+  return attempt ? { ...attempt, unitId, expectedAttemptId: value.expectedAttemptId } : undefined
 }
 
 function parseLearningCourseSync(value: unknown): LearningCourseSyncParams | undefined {
@@ -462,6 +500,7 @@ export function registerProductRoutes(
       const updateParams = route.kind === 'knowledge-point-update'
         ? parseKnowledgePointUpdate(body, route.knowledgePointId)
         : undefined
+      const learningReviewParams = route.kind === 'learning-review-submit' ? parseLearningReview(body, route.unitId) : undefined
       const learningCourseParams = route.kind === 'learning-course-sync'
         ? parseLearningCourseSync(body)
         : undefined
@@ -478,6 +517,8 @@ export function registerProductRoutes(
         || (route.kind === 'retry' && !retryParams)
         || (route.kind === 'review' && !reviewParams)
         || (route.kind === 'knowledge-point-update' && !updateParams)
+        || (route.kind === 'learning-review-queue' && !route.params)
+        || (route.kind === 'learning-review-submit' && !learningReviewParams)
         || (route.kind === 'learning-course-sync' && !learningCourseParams)
         || (route.kind === 'learning-attempt' && !learningAttemptParams)
       ) return sendError(res, 400, 'REQUEST_INPUT_INVALID')
@@ -527,6 +568,8 @@ export function registerProductRoutes(
         else if (route.kind === 'review') result = await operations.reviewCandidate(reviewParams as ReviewCandidateParams)
         else if (route.kind === 'knowledge-points') result = await operations.listKnowledgePoints(route.runId)
         else if (route.kind === 'knowledge-point-update') result = await operations.updateKnowledgePoint(updateParams as UpdateKnowledgePointParams)
+        else if (route.kind === 'learning-review-queue') result = await operations.listLearningReviews(route.params as LearningReviewQueueParams)
+        else if (route.kind === 'learning-review-submit') result = await operations.submitLearningReview(learningReviewParams as LearningReviewParams)
         else if (route.kind === 'learning-course-sync') result = await operations.syncLearningCourse(learningCourseParams as LearningCourseSyncParams)
         else if (route.kind === 'learning-course') result = route.method === 'DELETE'
           ? await operations.deleteLearningCourse(route.courseId)

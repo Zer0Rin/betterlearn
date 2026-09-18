@@ -1,8 +1,9 @@
+import { loadGoalCourses as readGoalCourses } from '../client/quiz/services/goal-courses.js'
 import { GlassBackdrop } from './GlassBackdrop.js'
-import { normalizeGlassFrost, readGlassFrost, writeGlassFrost } from './glass-preference.js'
+import { normalizeGlassFrost, readGlassFrost, writeGlassFrost, readComponentOpacity, writeComponentOpacity } from './glass-preference.js'
 import { WorkbenchWindow } from './WorkbenchWindow.js'
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { BookOpen, FileText, GraduationCap, History, Layers3, Settings2, ChartNoAxesCombined } from 'lucide-react'
+import { BookOpen, Bookmark, CalendarClock, Target, FileText, GraduationCap, History, Layers3, Settings2, ChartNoAxesCombined } from 'lucide-react'
 import { createClientApi } from '../client/client-api.js'
 import { NobeiWorkspace } from '../client/NobeiClientView.js'
 import { LearningBookComposer, LearningBookshelf, type LearningBookDraftResult } from '../client/components/LearningLibrary.js'
@@ -11,6 +12,7 @@ import { createLearningBook, hasLearningStarted, reviseLearningBook, updateLearn
 import { readLearningLayout, writeLearningLayout } from '../client/learning-layout.js'
 import { detachedModelSelection, ModelDirectoryBridgeError, type ModelDirectorySnapshot } from '../client/model-directory-bridge.js'
 import { QuizWorkspace } from '../client/quiz/QuizWorkspace.js'
+import { createReviewApi } from '../client/quiz/services/review-api.js'
 import { createQuizApi } from '../client/quiz/services/api.js'
 import type { ClientApi, KnowledgePointSnapshot, LearningCourse } from '../client/types.js'
 import { requestJson, RequestError, Settings } from './Settings.js'
@@ -23,6 +25,11 @@ const navigation = [
   {area:'knowledge',label:'知识提取',icon:FileText},
   {area:'quiz',label:'开始练习',icon:GraduationCap,route:'/',group:'练习'},
   {area:'quiz',label:'练习历史',icon:History,route:'/history'},
+  {area:'quiz',label:'题库',icon:Bookmark,route:'/bank'},
+  {area:'quiz',label:'到期复习',icon:CalendarClock,route:'/reviews'},
+  {area:'quiz',label:'知识点出题',icon:Target,route:'/source-practice'},
+  {area:'quiz',label:'学习目标',icon:Target,route:'/goals'},
+  {area:'quiz',label:'模拟考试',icon:GraduationCap,route:'/exams'},
   {area:'quiz',label:'学习统计',icon:ChartNoAxesCombined,route:'/profile'},
   {area:'settings',label:'设置',icon:Settings2,group:'偏好设置'},
 ] as const
@@ -31,6 +38,12 @@ export function StandaloneApp({api, fetcher = globalThis.fetch, storage = window
   api?: ClientApi; fetcher?: typeof fetch; storage?: Storage
 }) {
   const [glassFrost,setGlassFrost] = useState(()=>readGlassFrost(storage))
+  const [componentOpacity,setComponentOpacity] = useState(()=>readComponentOpacity(storage))
+  const [componentSaved,setComponentSaved] = useState(true)
+  function changeComponentOpacity(value: number) {
+    const next = normalizeGlassFrost(value)
+    setComponentOpacity(next); setComponentSaved(writeComponentOpacity(storage,next))
+  }
   const [glassSaved,setGlassSaved] = useState(true)
   function changeGlassFrost(value: number) {
     const next = normalizeGlassFrost(value)
@@ -38,6 +51,7 @@ export function StandaloneApp({api, fetcher = globalThis.fetch, storage = window
   }
   const clientApi = useMemo(()=>api ?? createClientApi(),[api,fetcher])
   const quizApi = useMemo(()=>createQuizApi({fetch:fetcher}),[fetcher])
+  const reviewApi = useMemo(()=>createReviewApi({fetch:fetcher}),[fetcher])
   const [area,setArea] = useState<Area>('library')
   const [quizRoute,setQuizRoute] = useState('/')
   const [historyOpen,setHistoryOpen] = useState(false)
@@ -46,6 +60,10 @@ export function StandaloneApp({api, fetcher = globalThis.fetch, storage = window
   const [modelError,setModelError] = useState('')
   const [books,setBooks] = useState<LearningBook[]>([])
   const booksRef = useRef(books)
+  const loadGoalCourses = useCallback(async()=>{
+    const ids=[...new Set(booksRef.current.flatMap(book=>book.courseId?[book.courseId]:[]))]
+    return readGoalCourses(ids,id=>clientApi.getLearningCourse(id))
+  },[clientApi])
   const [libraryReady,setLibraryReady] = useState(false)
   const [loadError,setLoadError] = useState('')
   const [saveError,setSaveError] = useState('')
@@ -159,7 +177,7 @@ export function StandaloneApp({api, fetcher = globalThis.fetch, storage = window
   }
   const activeBook=books.find(book=>book.bookId===activeBookId)
   const title=area==='knowledge'?'知识提取':area==='settings'?'设置':area==='quiz'?'知识库与练习':area==='compose'?'整理学习书':'学习空间'
-  return <WorkbenchWindow storage={storage} title={title} frost={glassFrost}><div className="standalone-app">
+  return <WorkbenchWindow storage={storage} title={title} frost={glassFrost} componentOpacity={componentOpacity}><div className="standalone-app">
     <a className="standalone-skip" href="#standalone-content">跳到内容</a>
     <aside className="standalone-sidebar">
       <GlassBackdrop frost={glassFrost} radius={0}/>
@@ -181,8 +199,8 @@ export function StandaloneApp({api, fetcher = globalThis.fetch, storage = window
       }}>重新加载最新学习书</button> : <button type="button" disabled={pendingSaves>0} onClick={()=>persist(booksRef.current)}>重试保存学习书</button>}</div>}
       {pendingSaves>0&&<p className="standalone-saving" role="status">正在保存学习书…</p>}
       <div id="standalone-content" tabIndex={-1} className="standalone-content" data-area={area}>
-        {area==='settings'&&<Settings appearance={{frost:glassFrost,onChange:changeGlassFrost,saved:glassSaved}} fetcher={fetcher} onSaved={async()=>{await refreshModel()}}/>}
-        {area==='quiz'&&<QuizWorkspace key={quizRoute} api={quizApi} storage={storage} initialRoute={quizRoute} onExit={()=>setArea('library')} onOpenExtraction={()=>setArea('knowledge')}/>}
+        {area==='settings'&&<Settings appearance={{frost:glassFrost,onChange:changeGlassFrost,saved:glassSaved && componentSaved,componentOpacity,onComponentChange:changeComponentOpacity}} fetcher={fetcher} onSaved={async()=>{await refreshModel()}}/>}
+        {area==='quiz'&&<QuizWorkspace key={quizRoute} api={quizApi} reviewApi={reviewApi} loadGoalCourses={loadGoalCourses} storage={storage} initialRoute={quizRoute} onExit={()=>setArea('library')} onOpenExtraction={()=>setArea('knowledge')}/>}
         {(area==='library'||area==='compose')&&!libraryReady&&<section className="standalone-empty"><h1>你的学习空间</h1><p role={loadError?'alert':'status'}>{loadError||'正在读取学习书…'}</p>{loadError&&<button onClick={()=>setLoadRevision(n=>n+1)}>重新加载学习书</button>}</section>}
         {area==='library'&&libraryReady&&<LearningBookshelf presentation="desktop" books={books} newBookId={newBookId} onOpenBook={book=>{setActiveBookId(book.bookId);setArea('learning')}}
           onEditBook={book=>{setDraft({points:book.points,sourceText:book.sourceText,editingBook:book});setArea('compose')}} onDeleteBook={deleteBook} onOpenKnowledge={()=>setArea('knowledge')}/>}

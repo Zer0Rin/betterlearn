@@ -64,5 +64,6 @@ async def get_task(task_id: str) -> Optional[dict]:
 async def has_active_tasks() -> bool:
     with transaction() as cur:
         cur.execute("SELECT 1 FROM quiz_tasks WHERE status IN ('pending', 'running') "
+                    "UNION ALL SELECT 1 FROM quiz_attempt_reports WHERE status = 'running' "
                     "UNION ALL SELECT 1 FROM kb_documents WHERE status = 'processing' LIMIT 1")
         return cur.fetchone() is not None

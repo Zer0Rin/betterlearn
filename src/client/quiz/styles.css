@@ -2268,3 +2268,106 @@
     font-size: 16px;
   }
 }
+
+/* Persistent practice status and round selection share the existing workspace palette. */
+.zl-module .zl-practice-status {
+  margin-bottom: 16px;
+  color: var(--zl-muted);
+  font-size: 13px;
+}
+.zl-module .zl-attempt-toolbar,
+.zl-module .zl-pending-answers {
+  padding: 20px;
+  margin-bottom: 24px;
+}
+.zl-module .zl-attempt-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+}
+.zl-module .zl-attempt-toolbar label {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+  flex: 1 1 300px;
+}
+.zl-module .zl-attempt-toolbar select { flex: 1; }
+.zl-module .zl-attempt-toolbar p { flex-basis: 100%; margin: 0; }
+.zl-module .zl-pending-answers .zl-footer-actions { flex-wrap: wrap; gap: 12px; }
+
+.zl-module .zl-bank-scopes,
+.zl-module .zl-bank-controls,
+.zl-module .zl-bank-card-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.zl-module .zl-bank-scopes button { gap: 8px; }
+.zl-module .zl-bank-scopes button[aria-pressed=true] { border-color: var(--zl-accent); color: var(--zl-accent); }
+.zl-module .zl-bank-toolbar,
+.zl-module .zl-bank-categories,
+.zl-module .zl-bank-detail,
+.zl-module .zl-bank-card,
+.zl-module .zl-review-task,
+.zl-module .zl-review-result { padding: 22px; margin-bottom: 20px; }
+.zl-module .zl-bank-controls input {
+  min-width: 0;
+  flex: 1 1 220px;
+  padding: 10px 12px;
+  border: 1px solid var(--zl-line-strong);
+  border-radius: var(--zl-radius-sm);
+  background: var(--zl-surface);
+  color: var(--zl-ink);
+}
+.zl-module .zl-bank-controls label { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.zl-module .zl-bank-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 16px; }
+.zl-module .zl-bank-card { margin: 0; overflow-wrap: anywhere; }
+.zl-module .zl-bank-card h2 { font-size: 18px; line-height: 1.6; margin: 8px 0 16px; }
+.zl-module .zl-bank-card-meta { color: var(--zl-muted); font-size: 12px; }
+.zl-module .zl-bank-options { list-style: none; padding: 0; line-height: 2; }
+.zl-module .zl-bank-detail details { margin: 18px 0; line-height: 1.8; }
+.zl-module .zl-bank-detail summary { cursor: pointer; }
+.zl-module .zl-bank-detail fieldset { border: 1px solid var(--zl-line); padding: 16px; border-radius: var(--zl-radius-sm); }
+.zl-module .zl-bank-category-choice { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px 8px 0; }
+.zl-module .zl-bank-categories ul,
+.zl-module .zl-bank-history { list-style: none; margin: 0; padding: 0; }
+.zl-module .zl-bank-categories li,
+.zl-module .zl-bank-history li { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--zl-line); }
+.zl-module .zl-bank-categories li > span,
+.zl-module .zl-bank-history li > div { flex: 1; min-width: 150px; }
+.zl-module .zl-bank-categories li input { flex: 1; min-width: 0; padding: 8px; }
+.zl-module .zl-bank-categories .zl-bank-controls { margin-top: 18px; }
+.zl-module .zl-review-task h3 { line-height: 1.7; margin: 20px 0; }
+.zl-module .zl-review-task .zl-options { margin-bottom: 20px; }
+.zl-module .zl-review-task .zl-option { text-align: left; }
+
+/* Learning goals share the bank's compact cards and controls. */
+.zl-goal-form{border:0;padding:0;margin:20px 0 0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.zl-goal-form label{display:flex;flex-direction:column;gap:8px;font-size:14px}
+.zl-goal-form input,.zl-goal-form select{min-width:0;width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid var(--zl-line);border-radius:8px;background:var(--zl-surface);color:inherit;font:inherit}
+.zl-goal-form p,.zl-goal-form .zl-bank-controls{grid-column:1/-1}
+.zl-goal-detail,.zl-goal-create{margin-top:16px;padding:22px}.zl-goal-detail h2{margin:0}.zl-goal-detail details{margin:20px 0}
+.zl-goal-metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px;padding:20px 0}
+.zl-goal-metrics>div{display:flex;flex-direction:column;gap:8px}.zl-goal-metrics strong{font-size:30px;font-variant-numeric:tabular-nums}.zl-goal-metrics small{color:var(--zl-muted)}
+.zl-goal-statistics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.zl-goal-statistics dt{color:var(--zl-muted);font-size:13px}.zl-goal-statistics dd{margin:6px 0}
+.zl-goal-basis li{padding:8px}.zl-goal-basis time{margin-left:16px;color:var(--zl-muted)}.zl-goal-version{overflow-wrap:anywhere}
+@media(max-width:640px){.zl-goal-form,.zl-goal-metrics,.zl-goal-statistics{grid-template-columns:1fr}}
+
+/* Self-exams retain readable question blocks and explicit persistence controls. */
+.zl-exam-panel{padding:22px;margin-top:18px}.zl-exam-source{display:flex;align-items:flex-start;gap:10px;padding:12px 0;cursor:pointer}.zl-exam-source input{margin-top:4px}.zl-exam-source small,.zl-exam-version{display:block;color:var(--zl-muted);font-size:12px;margin-top:6px;overflow-wrap:anywhere}
+.zl-exam-allocation{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:14px}.zl-exam-allocation input{width:80px;margin-left:12px;padding:8px;border:1px solid var(--zl-line);border-radius:8px;background:var(--zl-surface);color:inherit}
+.zl-exam-question{padding:20px 0;border-top:1px solid var(--zl-line);margin-top:20px}.zl-exam-question textarea{display:block;width:100%;box-sizing:border-box;min-height:70px;padding:10px;border:1px solid var(--zl-line);border-radius:8px;background:var(--zl-surface);color:inherit;font:inherit}.zl-exam-question summary{cursor:pointer}.zl-exam-question img{max-width:100%;max-height:320px;object-fit:contain}
+.zl-exam-clock{font-size:24px;font-weight:650;font-variant-numeric:tabular-nums;color:var(--zl-accent-text)}
+
+.zl-source-form textarea{width:100%;min-height:96px;resize:vertical;box-sizing:border-box;padding:10px 12px;border:1px solid var(--zl-line);border-radius:8px;background:var(--zl-surface);color:inherit;font:inherit}
+.zl-source-form input[type=checkbox]{width:auto;align-self:flex-start}
+.zl-goal-create code{overflow-wrap:anywhere}
+
+.zl-source-form .zl-source-image-choice{flex-direction:row;align-items:center}.zl-source-form .zl-source-image-choice input{align-self:auto}
+
+.zl-knowledge-stat-list{display:grid;gap:20px;margin:20px 0}.zl-knowledge-stat-list article{border-top:1px solid var(--zl-line);padding-top:20px}.zl-knowledge-stat-list h3{margin:0}.zl-knowledge-stat-list details{margin:12px 0}.zl-knowledge-statistics>p{line-height:1.7}

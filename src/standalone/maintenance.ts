@@ -3,7 +3,7 @@ import { join, resolve, relative, isAbsolute, dirname } from 'node:path'
 import { createHash,randomUUID } from 'node:crypto'
 import { acquireHomeLock } from './home.js'
 import { atomicJson } from './config.js'
-const entries=['core','quiz-data','settings.json','identity.json','library.json','library-delete.json']
+const entries=['core','quiz-data','settings.json','identity.json','library.json','library-delete.json','mcp-requests']
 function separate(a:string,b:string){const r=relative(resolve(a),resolve(b));if(!r||(!r.startsWith('..')&&!isAbsolute(r)))throw new Error('备份目标必须位于数据目录之外')}
 async function absent(path:string){try{await lstat(path);throw new Error('目标已存在，请选择全新目录')}catch(e){if((e as NodeJS.ErrnoException).code!=='ENOENT')throw e}}
 async function files(root:string,prefix=''):Promise<string[]>{const output:string[]=[];for(const name of await readdir(join(root,prefix))){const path=join(prefix,name);const s=await lstat(join(root,path));if(s.isSymbolicLink()||(!s.isDirectory()&&!s.isFile()))throw new Error('拒绝备份特殊文件');if(s.isDirectory())output.push(...await files(root,path));else output.push(path)}return output.sort()}

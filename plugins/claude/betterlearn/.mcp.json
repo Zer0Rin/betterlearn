@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "betterlearn": {
+      "command": "node",
+      "args": [
+        "/Applications/BetterLearn.app/Contents/Resources/standalone/mcp.mjs"
+      ]
+    }
+  }
+}

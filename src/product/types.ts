@@ -306,3 +306,23 @@ export interface LearningAttemptResult extends Record<string, unknown> {
   }
   course: LearningCourseSnapshot
 }
+
+
+export interface LearningReviewQueueParams { limit?: number; offset?: number; courseId?: string }
+export interface LearningReviewParams extends LearningAttemptParams { unitId: string; expectedAttemptId: string }
+export interface LearningReviewMetadata {
+  spaced: boolean;
+  phase: 'review' | 'remediation'
+  roundId: string
+  schedule: { intervalIndex: number; consecutiveCorrect: number; consecutiveWrong: number }
+}
+export interface LearningReviewResult extends LearningAttemptResult { review: LearningReviewMetadata }
+export interface LearningReviewQueue extends Record<string, unknown> {
+  items: Array<{
+    unitId: string; knowledgePointId: string; courseId: string; courseTitle: string; title: string
+    type: LearningUnitSnapshot['type']; phase: 'review' | 'remediation'; dueAt: string | null
+    priority: number; expectedAttemptId: string; assessment: LearningAssessmentSnapshot
+    remediation: { title: string; body: string } | null
+  }>
+  total: number; limit: number; offset: number; asOf: string
+}

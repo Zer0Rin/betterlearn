@@ -198,3 +198,62 @@
     -webkit-backdrop-filter: none;
   }
 }
+
+/* The operating system owns desktop window geometry and controls. */
+html[data-desktop], html[data-desktop] body, html[data-desktop] #root,
+html[data-desktop] .workbench-desktop { background:transparent; }
+html[data-desktop] .workbench-desktop::before { display:none; }
+html[data-desktop] .desktop-window { inset:0; width:100%; height:100%; max-width:none; max-height:none; border:0; border-radius:0; box-shadow:none; }
+.desktop-titlebar { height:48px; flex:0 0 48px; display:flex; align-items:center; padding-left:92px; font-size:13px; -webkit-app-region:drag; }
+html[data-native-glass=true] .standalone-sidebar > .glass-material { display:none; }
+html[data-desktop=darwin] .desktop-titlebar { background:transparent; }
+@media (prefers-reduced-transparency:reduce) {
+  html[data-desktop] .desktop-titlebar, html[data-desktop] .standalone-sidebar { background:var(--color-bg-page); }
+}
+
+/* Two independent layers: window material below, component fills above. */
+.workbench-window {
+  --color-bg-surface: rgb(255 255 255 / var(--component-opacity, .85));
+  --color-bg-page: rgb(247 248 250 / var(--component-opacity, .85));
+  --color-bg-sunken: rgb(240 242 245 / var(--component-opacity, .85));
+  --color-warning-bg: rgb(247 248 250 / var(--component-opacity, .85));
+  background:rgb(255 255 255 / var(--background-opacity, .35));
+}
+html[data-native-glass=true] .workbench-window { background:transparent; }
+.workbench-window .standalone-app .standalone-main { background:transparent; }
+.workbench-window .standalone-sidebar > .glass-material,
+.workbench-window .workbench-titlebar > .glass-material { display:none; }
+.workbench-window .standalone-app .standalone-sidebar,
+.workbench-window .desktop-titlebar,
+.workbench-window .workbench-titlebar { background:var(--color-bg-surface); }
+.workbench-window :is(.appearance-settings,.standalone-connection,.standalone-page-heading,.standalone-model-heading) {
+  background:var(--color-bg-surface);
+  border:1px solid #8a94a526;
+  border-radius:12px;
+  padding:24px;
+  margin-bottom:24px;
+}
+.workbench-window .standalone-app :is(input:not([type=range]):not([type=checkbox]),textarea,select) {
+  background:var(--color-bg-surface);
+}
+.workbench-window .standalone-app .betterlearn-library[data-presentation=desktop] .betterlearn-library__heading-actions button,
+.workbench-window .standalone-app .betterlearn-library[data-presentation=desktop] .betterlearn-library__empty button {
+  background:var(--color-bg-surface);
+}
+.component-appearance { margin-top:28px; padding-top:24px; border-top:1px solid var(--color-separator); }
+.component-appearance p { color:var(--color-text-secondary); font-size:12px; line-height:1.7; }
+@media (prefers-reduced-transparency:reduce) {
+  .workbench-window { --component-opacity:1!important; --background-opacity:1!important; }
+}
+@media (forced-colors:active) {
+  .workbench-window { background:Canvas!important; }
+}
+html[data-desktop] .workbench-window .desktop-titlebar { background:var(--color-bg-surface); }
+
+/* Native glass may reveal a dark desktop; headings need the same independent fill as cards. */
+html[data-desktop] .workbench-window .zl-heading {
+  background:var(--color-bg-surface);
+  border:1px solid #8a94a526;
+  border-radius:12px;
+  padding:24px;
+}

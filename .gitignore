@@ -23,5 +23,5 @@ services/quiz/.venv/
 
 # Local verification artifacts
 .playwright-cli/
-output/playwright/
-.superpowers/sdd/yu-integration/
+output/
+.superpowers/

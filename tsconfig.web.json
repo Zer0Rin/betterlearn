@@ -1,5 +1,5 @@
 {
  "extends":"./tsconfig.json",
  "compilerOptions":{"noEmit":true,"skipLibCheck":true},
- "include":["src/standalone/**/*.ts","src/standalone/**/*.tsx","src/client/quiz/styles.d.ts"]
+ "include":["src/mcp/**/*.ts","src/standalone/**/*.ts","src/standalone/**/*.tsx","src/client/quiz/styles.d.ts"]
 }

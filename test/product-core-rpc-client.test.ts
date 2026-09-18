@@ -300,3 +300,17 @@ test('preview forwards fixed RPC without import or generation', async () => {
   expect(await preview).toMatchObject({ text: '正文😀' })
   client.close()
 })
+
+test('writes closed review queue and submission RPCs', async () => {
+ const {client,input,requests}=pair()
+ const queue=client.listLearningReviews({limit:10,offset:0})
+ const command={unitId:`unit_${'a'.repeat(20)}`,assessmentId:`asm_${'b'.repeat(20)}`,optionId:`opt_${'c'.repeat(20)}`,expectedAttemptId:`latt_${'d'.repeat(20)}`,idempotencyKey:`idem_${'e'.repeat(20)}`}
+ const submit=client.submitLearningReview(command)
+ expect(requests).toEqual([
+  {jsonrpc:'2.0',id:1,method:'learning_reviews.queue',params:{limit:10,offset:0}},
+  {jsonrpc:'2.0',id:2,method:'learning_reviews.submit',params:command},
+ ])
+ input.write(result(1,{items:[],total:0}));input.write(result(2,{attempt:{correct:true}}))
+ await expect(queue).resolves.toMatchObject({items:[]})
+ await expect(submit).resolves.toMatchObject({attempt:{correct:true}})
+})

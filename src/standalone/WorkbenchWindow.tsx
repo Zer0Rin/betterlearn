@@ -1,6 +1,6 @@
 import { GlassBackdrop, glassVariables } from './GlassBackdrop.js'
 import { DEFAULT_GLASS_FROST } from './glass-preference.js'
-import { useEffect, useRef, useState, type ReactNode, type PointerEvent as ReactPointerEvent, type KeyboardEvent } from 'react'
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode, type PointerEvent as ReactPointerEvent, type KeyboardEvent } from 'react'
 import { BookOpen, Maximize2, Minimize2, Minus, MoveDiagonal2 } from 'lucide-react'
 import { clampWorkbenchSize, resizeFromPointer, type ResizeAxis, type WorkbenchSize } from '../client/workbench-size.js'
 import { readWindowSize, writeWindowSize } from './window-state.js'
@@ -12,7 +12,15 @@ function viewport() {
 interface Gesture { axis: ResizeAxis; pointerId:number; x:number; y:number; size:WorkbenchSize }
 
 /** The host owns content and services; this shell owns only its presentation. */
-export function WorkbenchWindow({ children, storage, title, frost = DEFAULT_GLASS_FROST }: {children:ReactNode; storage:Storage; title:string; frost?:number}) {
+export function WorkbenchWindow({ children, storage, title, frost = DEFAULT_GLASS_FROST, componentOpacity = 85 }: {children:ReactNode; storage:Storage; title:string; frost?:number; componentOpacity?:number}) {
+  const desktop = typeof window !== 'undefined' ? (window as unknown as {betterlearnDesktop?: {platform: string; setFrost(value:number):Promise<{nativeGlass:boolean}>}}).betterlearnDesktop : undefined
+  useEffect(()=>{
+    if (!desktop) return
+    document.documentElement.dataset.desktop = desktop.platform
+    let current = true
+    void desktop.setFrost(frost).then(result=>{ if(current) document.documentElement.dataset.nativeGlass=String(result.nativeGlass) }).catch(()=>{ if(current) document.documentElement.dataset.nativeGlass='false' })
+    return ()=>{current=false}
+  },[frost,desktop])
   const [bounds,setBounds] = useState(viewport)
   const [manual,setManual] = useState(()=>readWindowSize(storage))
   const [collapsed,setCollapsed] = useState(false)
@@ -89,7 +97,13 @@ export function WorkbenchWindow({ children, storage, title, frost = DEFAULT_GLAS
     const next=resizeFromPointer(size,axis,dx,dy,bounds)
     setManual(next);writeWindowSize(storage,next)
   }
-  return <div className="workbench-desktop" style={glassVariables(frost)} data-glass-frost={frost}>
+  if (desktop) return <div className="workbench-desktop" style={{...glassVariables(frost), '--component-opacity':componentOpacity / 100, '--background-opacity':frost / 100} as CSSProperties} data-glass-frost={frost}>
+    <section className="workbench-window desktop-window" data-testid="workbench-window" aria-label="BetterLearn 工作台">
+      {desktop.platform === 'darwin' && <header className="desktop-titlebar"><strong>BetterLearn</strong></header>}
+      <div className="workbench-window-body">{children}</div>
+    </section>
+  </div>
+  return <div className="workbench-desktop" style={{...glassVariables(frost), '--component-opacity':componentOpacity / 100, '--background-opacity':frost / 100} as CSSProperties} data-glass-frost={frost}>
     <button ref={launcher} className="workbench-launcher" type="button" hidden={!collapsed}
       aria-label="打开 BetterLearn" aria-expanded={!collapsed} aria-controls="betterlearn-workbench"
       onClick={()=>{focusPending.current=true;setCollapsed(false)}}><GlassBackdrop frost={frost} radius={16}/><BookOpen size={20}/><span>BetterLearn</span></button>

@@ -1,0 +1,23 @@
+{
+  "name": "betterlearn",
+  "version": "0.1.0",
+  "description": "Read learning materials and generate quizzes with BetterLearn’s own configured API.",
+  "author": {
+    "name": "BetterLearn contributors"
+  },
+  "license": "MIT",
+  "mcpServers": "./.mcp.json",
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "BetterLearn",
+    "shortDescription": "访问本机学习资料与练习",
+    "longDescription": "连接正在运行的 BetterLearn。生成使用 BetterLearn 自身配置的 API；不转接宿主账号或订阅额度。",
+    "developerName": "BetterLearn contributors",
+    "category": "Productivity",
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": "查看我的 BetterLearn 练习历史。"
+  }
+}

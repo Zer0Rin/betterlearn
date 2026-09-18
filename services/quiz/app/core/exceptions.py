@@ -44,3 +44,16 @@ class KnowledgeBaseError(Exception):
 class KnowledgeDocumentNotFound(KnowledgeBaseError):
     """Missing original document, distinct from invalid upload or parsing errors."""
     status_code = 404
+
+
+class AttemptError(Exception):
+    """Expected attempt validation, ownership or state conflict."""
+    def __init__(self, message: str, status_code: int = 409):
+        self.status_code = status_code
+        super().__init__(message)
+
+
+class BankError(Exception):
+    def __init__(self, message: str, status_code: int = 409):
+        self.status_code = status_code
+        super().__init__(message)

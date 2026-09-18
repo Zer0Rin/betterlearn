@@ -1,5 +1,6 @@
 import type { AnswerRecord, QuizData, ReportData } from '../types.js'
 export interface PracticeSession {
+  practiceVersion?: 1; attemptId?: string
   quiz?: QuizData; records: AnswerRecord[]; index: number; report?: ReportData
   taskId?: string; taskStartedAt?: number
 }

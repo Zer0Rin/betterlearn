@@ -78,7 +78,7 @@ export function Settings({ fetcher = globalThis.fetch, onSaved, appearance }: { 
         <div className="standalone-secret"><label>API 密钥 <small>{settings[key].apiKeySet ? '已配置' : '未配置'}</small>
           <input type="password" aria-label={`${labels[key]}密钥`} autoComplete="new-password" value={secrets[key] ?? ''}
             placeholder={secrets[key] === '' ? '保存后清除' : '留空保留现有密钥'}
-            onChange={e=>setSecrets(current=>{const next={...current}; if(e.currentTarget.value) next[key]=e.currentTarget.value; else delete next[key];return next})}/></label>
+            onChange={e=>{const value=e.currentTarget.value;setSecrets(current=>{const next={...current}; if(value) next[key]=value; else delete next[key];return next})}}/></label>
           <button type="button" aria-label={`清除${labels[key]}密钥`} onClick={()=>setSecrets({...secrets,[key]:''})}>清除密钥</button>
           {secrets[key] === '' && <button type="button" onClick={()=>setSecrets(current=>{const next={...current};delete next[key];return next})}>撤销清除</button>}
         </div>

@@ -1,0 +1,24 @@
+appId: io.betterlearn.desktop
+productName: BetterLearn
+directories:
+  app: dist/desktop
+  output: dist/installers
+files:
+  - '**/*'
+asar: true
+asarUnpack:
+  - native/*.node
+extraResources:
+  - from: dist/standalone
+    to: standalone
+    filter:
+      - '**/*'
+npmRebuild: false
+mac:
+  category: public.app-category.education
+  target:
+    - dmg
+linux:
+  category: Education
+  target:
+    - AppImage

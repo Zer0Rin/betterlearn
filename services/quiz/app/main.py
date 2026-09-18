@@ -8,11 +8,13 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api.v1.routes import health, knowledge, quiz, report, user
+from app.api.v1.routes import health, knowledge, quiz, report, user, attempt, question_bank, learning_goal, exam
 from app.core.config import get_settings
 from app.core.db import close_db, init_db
 from app.core.exceptions import (
     AuthenticationError,
+    AttemptError,
+    BankError,
     ContentFilterError,
     KnowledgeBaseError,
     QuizGenerationError,
@@ -62,6 +64,10 @@ app.add_middleware(
 
 # 注册路由
 app.include_router(health.router, prefix="/api/v1")
+app.include_router(question_bank.router, prefix="/api/v1")
+app.include_router(learning_goal.router, prefix="/api/v1")
+app.include_router(exam.router, prefix="/api/v1")
+app.include_router(attempt.router, prefix="/api/v1")
 app.include_router(quiz.router, prefix="/api/v1")
 app.include_router(report.router, prefix="/api/v1")
 app.include_router(user.router, prefix="/api/v1")
@@ -69,6 +75,13 @@ app.include_router(knowledge.router, prefix="/api/v1")
 
 
 # 全局异常处理
+@app.exception_handler(BankError)
+@app.exception_handler(AttemptError)
+async def attempt_error_handler(request: Request, exc: AttemptError):
+    return JSONResponse(status_code=exc.status_code,
+        content=ApiResponse.error(code=exc.status_code * 10, message=str(exc)).model_dump())
+
+
 @app.exception_handler(AuthenticationError)
 async def auth_error_handler(request: Request, exc: AuthenticationError):
     return JSONResponse(

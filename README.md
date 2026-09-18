@@ -2,22 +2,30 @@
 
 [![CI](https://github.com/Zer0Rin/betterlearn-for-dsh/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Zer0Rin/betterlearn-for-dsh/actions/workflows/ci.yml)
 
-本机运行、单人使用的学习工作台。先提供独立 Web 版，后续 Electron 复用同一套界面、应用接口与数据。
+本机运行、单人使用的学习工作台。独立 Web 与 Electron 桌面入口共用界面、应用接口与数据；生成与搜索使用自己配置的 API。
 
 **现在无需安装 DSH 或 MySQL。** 浏览器页面、模型设置和启动入口均独立；知识提取与课程使用 Core SQLite，知识库与练习使用 Quiz SQLite，向量检索使用 Chroma。
 
 ## 学习流程
 
 - 文件、粘贴正文或知识库 → 候选提取 → 逐字证据校验 → 人工审核 → 知识点 → 学习书与课程进度。
-- 知识库或主题 → AI 出题 → 答题 → 复盘 → 练习历史与学习统计。
+- 知识库、主题或课程知识点 → AI 出题 → 保存草稿 → 交卷成绩 → 按需生成 AI 报告。
+- 题库支持错题、收藏、分类与来源绑定；学习目标按知识点版本统计证据，到期复习使用课程队列。
+- 从已有题库多来源组卷 → 预览缺口 → 逐题覆盖审核 → 计时考试 → 独立成绩；考试不自动更新课程掌握度。
 - 支持知识库 PDF、DOCX、Markdown、TXT；PDF 仅文字层，无 OCR。
 - 模型设置统一在页面中管理；文本模型使用支持工具调用的 OpenAI 兼容接口。Embedding、图片与联网检索分别配置。
 - 配图可保存本机，不需要 COS。未配置外部模型时可以浏览已有学习数据。
 - 本地书库具有版本冲突检测，多标签页不会静默覆盖彼此的修改。
 
+页面操作与恢复规则见 [学习功能使用指南](docs/learning-workflows.md)。
+
 ## 启动
 
-首版支持 macOS/Linux，需要 Node.js 24+、Python 3.12。运行模型需要自行配置可用服务；不是离线模型安装器。Windows 与 Electron 分发在后续阶段处理。
+当前后端支持 macOS/Linux，源码启动需要 Node.js 24+、Python 3.12。运行模型需要自行配置可用服务；不是离线模型安装器。Windows 尚未适配。
+
+桌面入口：安装依赖后运行 `corepack pnpm start:desktop`，首次启动按页面指引准备 Python 环境。打包、依赖前提与数据目录说明见 [Electron 桌面版](docs/desktop.md)。桌面包自带 Node 运行时，仍需 Python 3.12；MCP 业务接口与 stdio 连接程序已实现，见 [MCP 使用说明](docs/mcp.md)；[Codex／Claude Code 插件包装](docs/plugins.md)已完成本机安装与协议验证。
+
+浏览器入口：
 
 ```bash
 corepack pnpm install --frozen-lockfile

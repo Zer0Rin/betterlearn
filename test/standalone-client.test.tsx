@@ -41,6 +41,21 @@ test('settings preserve existing secrets unless changed and support explicit cle
   expect(saved).toHaveBeenCalledTimes(2)
 })
 
+test('settings capture typed secrets before the input event currentTarget is cleared', async () => {
+  const request = vi.fn(async (_url: unknown, _init?: RequestInit) => response(settings))
+  await act(async () => { root = create(<Settings fetcher={request as typeof fetch} onSaved={() => {}}/>) })
+  const input = root.root.findByProps({ 'aria-label': '文本模型密钥' })
+  act(() => {
+    for (const value of ['new', 'new-secret']) {
+      const event: { currentTarget: { value: string } | null } = { currentTarget: { value } }
+      input.props.onChange(event)
+      event.currentTarget = null
+    }
+  })
+  await act(async () => root.root.findByType('form').props.onSubmit({ preventDefault() {} }))
+  expect(JSON.parse(String(request.mock.calls.at(-1)![1]!.body)).text.apiKey).toBe('new-secret')
+})
+
 test('blocks book writes after a library read failure and allows loading recovery', async () => {
   let fail=true
   const request=vi.fn(async (url: unknown)=>String(url)==='/api/library' ? fail ? new Response('',{status:500}) : response({books:[],revision:0}) : response({provider:'local',model:'fake'}))

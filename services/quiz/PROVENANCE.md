@@ -6,4 +6,11 @@ Imported on 2026-09-17 from the user's locally modified React/Vite migration, in
 
 BetterLearn modifications include embedded React navigation and styling, an owned loopback service with private Host authentication, same-origin Host routes, internal knowledge-library extraction, installation integration and migration regression tests. BetterLearn's existing root license remains in place.
 
+The later `app/services/choice_grading.py` and
+`app/repositories/question_bank_repository.py` and `app/services/evidence_scoring.py`
+additions adapt DeepTutor source under
+Apache-2.0, separately from the MIT-derived portions above. Its license, source
+revision and modifications are recorded in `third_party/DeepTutor/` and included
+in standalone/desktop resources.
+
 No upstream `.git`, virtual environments, generated bundles, API keys, upload files, or databases are part of this source import. Existing original project directory is preserved.

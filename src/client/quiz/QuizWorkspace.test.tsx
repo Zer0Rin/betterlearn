@@ -1,6 +1,7 @@
 import { act, create, type ReactTestRenderer } from 'react-test-renderer'
 import { afterEach, expect, it, vi } from 'vitest'
 import { QuizWorkspace } from './QuizWorkspace.js'
+import { attempt } from './services/practice.fixture.js'
 import type { QuizApi } from './services/contracts.js'
 const values = new Map<string,string>()
 const storage = { getItem: (k:string)=> values.get(k) ?? null, setItem: (k:string,v:string)=>{values.set(k,v)} }
@@ -27,7 +28,7 @@ it('resumes a persisted task, recovers a polling failure, and saves completed qu
   values.set('betterlearn:quiz:practice', JSON.stringify({ records:[],index:0,taskId:'task-42' }))
   const quiz = { quiz_id:'quiz42',title:'Recovered',summary:'',questions:[{id:'q1',stem:'Question',type:'single',options:[{key:'A',text:'Answer'}],answer:['A'],explanation:'Because',knowledge_point:'Point',difficulty:'easy'}] }
   const getTask = vi.fn().mockRejectedValueOnce(new Error('暂时断开')).mockResolvedValueOnce({status:'completed',result:quiz})
-  const api = { connect:async()=>({user:{}}),getProfile:async()=>({nickname:'学习者'}),getTask } as unknown as QuizApi
+  const api = { connect:async()=>({user:{}}),getProfile:async()=>({nickname:'学习者'}),getTask,listAttempts:async()=>({items:[]}),createAttempt:async()=>attempt({...quiz}),getAttempt:async()=>attempt({...quiz}) } as unknown as QuizApi
   let renderer!:ReactTestRenderer
   await act(async()=>{renderer=create(<QuizWorkspace api={api} storage={storage} initialRoute='/quiz' onExit={()=>{}}/>)})
   expect(renderer.root.findByProps({role:'alert'}).children).toContain('暂时断开')
@@ -89,5 +90,14 @@ it('uses the accepted task when storage recovers after the panel closes',async()
  await act(async()=>resolveTask({task_id:'task_recovered_storage'}))
  await act(async()=>{renderer=create(<QuizWorkspace api={api} storage={recoveringStorage} onExit={()=>{}}/>)})
  expect(getTask).toHaveBeenCalledWith('task_recovered_storage',expect.any(AbortSignal))
+ act(()=>renderer.unmount())
+})
+it('opens Core reviews without connecting the quiz service',async()=>{
+ const connect=vi.fn(async()=>{throw Error('quiz unavailable')})
+ const reviewApi={queue:vi.fn(async()=>({items:[],total:0,limit:20,offset:0,asOf:'2026-09-18T00:00:00Z'})),submit:vi.fn()}
+ let renderer!:ReactTestRenderer
+ await act(async()=>{renderer=create(<QuizWorkspace api={{connect} as unknown as QuizApi} reviewApi={reviewApi} storage={storage} initialRoute='/reviews' onExit={()=>{}}/>)})
+ expect(connect).not.toHaveBeenCalled();expect(reviewApi.queue).toHaveBeenCalledOnce()
+ expect(JSON.stringify(renderer.toJSON())).toContain('当前没有待复习任务')
  act(()=>renderer.unmount())
 })

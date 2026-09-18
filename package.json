@@ -25,13 +25,21 @@
     "test": "vitest run --config vitest.web.config.ts",
     "test:core": "PYTHONPATH=python .venv-phase1b/bin/python -m pytest python/tests -q",
     "test:quiz": "PYTHONPATH=services/quiz services/quiz/.venv/bin/python -m pytest services/quiz/tests -q",
-    "pack:web": "pnpm build:web && tar -czf dist/betterlearn-web-0.1.0.tgz -C dist standalone"
+    "pack:web": "pnpm build:web && tar -czf dist/betterlearn-web-0.1.0.tgz -C dist standalone",
+    "build:desktop": "pnpm build:web && tsc -p tsconfig.desktop.json && node scripts/build-desktop.mjs",
+    "start:desktop": "pnpm build:desktop && electron dist/desktop/main.mjs",
+    "pack:desktop": "pnpm build:desktop && electron-builder --config electron-builder.yml",
+    "test:desktop": "pnpm build:desktop && node scripts/verify-desktop.mjs",
+    "prepare:plugins": "node scripts/prepare-plugins.mjs",
+    "test:plugins": "pnpm build:web && pnpm prepare:plugins && node scripts/verify-plugins.mjs"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "1.29.0",
+    "ajv": "8.17.1",
     "lucide-react": "0.468.0",
     "react": "18.2.0",
     "react-dom": "18.3.1",
-    "ajv": "8.17.1"
+    "zod": "3.25.76"
   },
   "devDependencies": {
     "@playwright/test": "1.62.1",
@@ -39,6 +47,8 @@
     "@types/react": "18.3.1",
     "@types/react-dom": "18.3.0",
     "@types/react-test-renderer": "18.3.0",
+    "electron": "44.4.1",
+    "electron-builder": "26.15.3",
     "esbuild": "0.25.12",
     "js-yaml": "4.3.1",
     "react-test-renderer": "18.2.0",

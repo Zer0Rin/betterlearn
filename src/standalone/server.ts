@@ -1,5 +1,8 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
-import { readFile, realpath } from 'node:fs/promises'
+import { randomBytes, timingSafeEqual } from 'node:crypto'
+import { createMcpOperations, McpOperationError } from './mcp-service.js'
+import { atomicJson } from './config.js'
+import { readFile, realpath, rm } from 'node:fs/promises'
 import { join } from 'node:path'
 import { SettingsStore } from './config.js'
 import { acquireHomeLock, initializeCore } from './home.js'
@@ -15,11 +18,13 @@ import { registerProductRoutes } from '../product/routes.js'
 import { registerQuizRoutes } from '../product/quiz-routes.js'
 import { QuizService, type QuizServicePort } from '../product/quiz-service.js'
 import { KnowledgeBaseSource } from '../product/knowledge-base-source.js'
-import { authorizeProductRequest, parseProductJsonBody } from '../product/request-security.js'
+import { authorizeProductRequest, parseProductJsonBody, ProductRequestError } from '../product/request-security.js'
 import type { RouteContext } from '../product/http-port.js'
 export interface StandaloneOptions { home:string;packageRoot:string;pythonExecutable:string;quizPythonExecutable:string;port?:number;quiz?:boolean }
 function json(res:ServerResponse,status:number,value:unknown){res.writeHead(status,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});res.end(JSON.stringify(value))}
 export async function startStandalone(options:StandaloneOptions){
+ const token=randomBytes(32).toString('hex')
+ const connectionPath=join(options.home,'mcp-connection.json')
  const unlock=await acquireHomeLock(options.home,options.pythonExecutable)
  let core:CoreSupervisor|undefined;let coordinator:GenerationCoordinator|undefined;let quiz:QuizService|undefined
  const routes:Array<{path:string;handler(req:IncomingMessage,res:ServerResponse):void|Promise<void>}>=[]
@@ -28,12 +33,13 @@ export async function startStandalone(options:StandaloneOptions){
  const handlers=new Set<Promise<void>>()
  const server=createServer((req,res)=>{if(stopped){json(res,503,{message:'应用正在关闭'});return}requests++;res.once('close',()=>{requests--});const handler=handle(req,res).catch(()=>{if(!res.headersSent)json(res,500,{message:'本机服务处理失败，请检查服务状态'});else res.end()});handlers.add(handler);void handler.finally(()=>handlers.delete(handler))})
  let closing:Promise<void>|undefined
- const close=():Promise<void>=>closing??=(async()=>{stopped=true;unregister.forEach(fn=>fn());server.close();server.closeAllConnections();await Promise.allSettled([...handlers]);try{await coordinator?.dispose()}finally{try{await core?.dispose()}finally{try{await quiz?.dispose()}finally{await unlock()}}}})()
+ const close=():Promise<void>=>closing??=(async()=>{stopped=true;unregister.forEach(fn=>fn());server.close();server.closeAllConnections();await Promise.allSettled([...handlers]);try{await coordinator?.dispose()}finally{try{await core?.dispose()}finally{try{await quiz?.dispose()}finally{try{await rm(connectionPath,{force:true})}finally{await unlock()}}}}})()
  let settings:SettingsStore;let library:LibraryStore
  const port=()=>{const address=server.address();return address&&typeof address!=='string'?address.port:0}
  const ctx:RouteContext={webServer:{get port(){return port()},register(route){routes.push(route);return()=>{const i=routes.indexOf(route);if(i>=0)routes.splice(i,1)}}}}
  const makeQuiz=()=>new QuizService({pythonExecutable:options.quizPythonExecutable,envFile:join(options.home,'quiz.env'),dataRoot:join(options.home,'quiz-data'),packageRoot:options.packageRoot})
  const quizPort:QuizServicePort={start:()=>quiz!.start(),session:()=>quiz!.session(),request:(p,i)=>quiz!.request(p,i),dispose:async()=>{await quiz?.dispose()}}
+ const mcpCall=createMcpOperations({home:options.home,learningBooks:()=>library.read(),learningCourse:(courseId,signal)=>core!.withReadyClient(client=>client.getLearningCourse({courseId},signal)),configured:()=>!!settings.selection(),request:(path,init)=>quiz ? quizPort.request(path,init) : Promise.reject(new Error('QUIZ_UNAVAILABLE'))})
  async function deleteCourse(id:string){try{await core!.withReadyClient(client=>client.deleteLearningCourse({courseId:id}))}catch(error){if((error as {code?:string}).code!=='LEARNING_COURSE_NOT_FOUND')throw error}}
  async function handle(req:IncomingMessage,res:ServerResponse){
   const pathname=new URL(req.url??'/','http://127.0.0.1').pathname
@@ -42,6 +48,20 @@ export async function startStandalone(options:StandaloneOptions){
   const trust=authorizeProductRequest(api?req:{headers:{host:req.headers.host},socket:req.socket},req.method!=='GET',port())
   if(!trust.ok)return json(res,403,{message:trust.code})
   if(settingsBusy)return json(res,503,{message:'正在应用设置，请稍后重试'})
+  if(pathname==='/api/mcp/call') {
+   const auth=req.headers.authorization
+   const supplied=typeof auth==='string'&&auth.startsWith('Bearer ')?auth.slice(7):''
+   if(!/^[a-f0-9]{64}$/.test(supplied)||!timingSafeEqual(Buffer.from(supplied),Buffer.from(token)))return json(res,403,{message:'UNAUTHORIZED'})
+   if(req.method!=='POST')return json(res,405,{message:'METHOD_NOT_ALLOWED'})
+   if(req.headers['content-type']?.split(';')[0]!=='application/json')return json(res,415,{message:'JSON_REQUIRED'})
+   try {
+    const body=await parseProductJsonBody(req) as {name?:unknown;args?:unknown}
+    return json(res,200,{data:await mcpCall(body?.name,body?.args)})
+   } catch(error) {
+    if(error instanceof ProductRequestError)return json(res,error.status,{error:error.code})
+    return json(res,200,{error:error instanceof McpOperationError?error.message:'BETTERLEARN_OPERATION_FAILED'})
+   }
+  }
   if(pathname==='/api/settings'){
    if(req.method==='GET')return json(res,200,settings.public())
    if(req.method!=='PUT')return json(res,405,{message:'METHOD_NOT_ALLOWED'})
@@ -94,10 +114,12 @@ export async function startStandalone(options:StandaloneOptions){
   coordinator=new GenerationCoordinator(core,new StandaloneGenerationAdapter(contract,async selection=>settings.connection(selection)),{async resolve(selection){try{settings.connection(selection);return {...selection}}catch{throw new ModelSelectionResolutionError()}}})
   await settings.writeQuizEnv();if(options.quiz!==false)quiz=makeQuiz()
   const knowledgeBaseSource=quiz?new KnowledgeBaseSource({baseUrl:'http://127.0.0.1',token:'managed',fetch:(input,init)=>quizPort.request(new URL(String(input)).pathname.replace(/^\/api\/v1/,''),{signal:init?.signal})}):undefined
-  unregister.push(registerProductRoutes(ctx,core,createProductOperations({supervisor:core,coordinator,knowledgeBaseSource})),registerQuizRoutes(ctx,quiz?quizPort:undefined))
+  const operations=createProductOperations({supervisor:core,coordinator,knowledgeBaseSource})
+  unregister.push(registerProductRoutes(ctx,core,operations),registerQuizRoutes(ctx,quiz?quizPort:undefined,operations))
   await core.start()
   await library.recoverDelete(deleteCourse)
   await new Promise<void>((resolve,reject)=>{server.once('error',reject);server.listen(options.port??3210,'127.0.0.1',resolve)})
+  await atomicJson(connectionPath,{url:`http://127.0.0.1:${port()}`,token})
   return {url:`http://127.0.0.1:${port()}`,close}
  }catch(error){await close();throw error}
 }

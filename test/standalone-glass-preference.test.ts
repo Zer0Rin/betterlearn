@@ -92,3 +92,20 @@ test('material parameters normalize unsafe values before calculating effects', (
   expect(glassParameters(110)).toEqual(glassParameters(100))
   expect(glassParameters(NaN)).toEqual(glassParameters(DEFAULT_GLASS_FROST))
 })
+
+test('component opacity is independent of the existing background preference', async () => {
+  const {readComponentOpacity,writeComponentOpacity,DEFAULT_COMPONENT_OPACITY,COMPONENT_OPACITY_KEY} = await import('../src/standalone/glass-preference.js')
+  const values = new Map<string,string>()
+  const storage = {getItem:(key:string)=>values.get(key)??null,setItem:(key:string,value:string)=>{values.set(key,value)}}
+  writeGlassFrost(storage, 12)
+  expect(readComponentOpacity(storage)).toBe(DEFAULT_COMPONENT_OPACITY)
+  expect(writeComponentOpacity(storage, 92)).toBe(true)
+  expect(readGlassFrost(storage)).toBe(12)
+  writeGlassFrost(storage, 70)
+  expect(readComponentOpacity(storage)).toBe(92)
+  for (const value of ['{', '{"version":1,"opacity":null}', '{"version":2,"opacity":30}']) {
+    values.set(COMPONENT_OPACITY_KEY,value)
+    expect(readComponentOpacity(storage)).toBe(DEFAULT_COMPONENT_OPACITY)
+  }
+  expect(writeComponentOpacity({setItem(){throw new Error('blocked')}},30)).toBe(false)
+})

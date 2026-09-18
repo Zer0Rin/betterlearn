@@ -35,6 +35,7 @@ from nobei_core.ids import (
     require_idempotency_key,
     require_opaque_id,
 )
+from nobei_core.learning_reviews import review_queue
 from nobei_core.learning import course_snapshot, delete_course, submit_attempt, sync_course
 from nobei_core.repository import (
     append_event,
@@ -1206,6 +1207,18 @@ class Phase1Core:
         command = _require_params(params, frozenset({"courseId"}))
         with _transactional_write(self._database, "learning course delete failed") as con:
             return delete_course(con, command["courseId"])
+
+    def list_learning_reviews(self, params: object) -> dict[str, object]:
+        with self._database.read_snapshot() as con:
+            return review_queue(con, params)
+
+    def submit_learning_review(self, params: object) -> dict[str, object]:
+        command = _require_params(params, frozenset({"unitId", "assessmentId", "optionId", "expectedAttemptId", "idempotencyKey"}))
+        context = {"unitId": require_opaque_id(command["unitId"], "unit"),
+                   "expectedAttemptId": require_opaque_id(command["expectedAttemptId"], "latt")}
+        attempt = {key: command[key] for key in ("assessmentId", "optionId", "idempotencyKey")}
+        with _transactional_write(self._database, "learning review failed") as con:
+            return submit_attempt(con, attempt, review_context=context)
 
     def submit_learning_attempt(self, params: object) -> dict[str, object]:
         with _transactional_write(self._database, "learning attempt failed") as con:

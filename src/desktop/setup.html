@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; base-uri 'none'; form-action 'none'">
+  <title>BetterLearn · 准备学习环境</title>
+  <link rel="stylesheet" href="setup.css">
+</head>
+<body>
+  <main>
+    <p class="brand">BetterLearn</p>
+    <h1>准备你的学习工作台</h1>
+    <p class="intro">资料、练习和学习进度保存在本机。进入工作台后，在设置中填写自己的模型 API。</p>
+    <p id="status" role="status" aria-live="polite">正在检查本机学习环境…</p>
+    <section id="setup" hidden>
+      <h2>准备学习环境</h2>
+      <p>需要 Python 3.12。准备过程会联网下载依赖，可能需要几分钟；退出应用会取消准备，下次可以重试。</p>
+      <label for="python-list">已检测到的 Python 3.12</label>
+      <select id="python-list"></select>
+      <p id="python-note"></p>
+      <details><summary>高级选项</summary><p>仅在自动检测未找到自定义安装时，手动指定 Python 可执行文件。</p><button id="choose" type="button">手动指定文件…</button><p id="python"></p></details>
+      <dl><dt>学习数据目录</dt><dd id="home"></dd></dl>
+      <div class="actions"><button id="prepare" class="primary" type="button">准备学习环境</button></div>
+    </section>
+    <div class="actions"><button id="retry" type="button">重新检查</button></div>
+  </main>
+  <script src="setup.js"></script>
+</body>
+</html>

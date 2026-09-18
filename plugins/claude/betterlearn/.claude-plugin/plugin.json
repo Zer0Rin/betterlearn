@@ -1,0 +1,10 @@
+{
+  "name": "betterlearn",
+  "version": "0.1.0",
+  "description": "Read learning materials and generate quizzes with BetterLearn’s own configured API.",
+  "author": {
+    "name": "BetterLearn contributors"
+  },
+  "license": "MIT",
+  "mcpServers": "./.mcp.json"
+}

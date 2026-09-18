@@ -9,6 +9,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from nobei_core.errors import CoreProblem
+from nobei_core.learning_reviews import latest_unit_attempt, previous_review, review_transition
 from nobei_core.ids import new_opaque_id, require_idempotency_key, require_opaque_id
 
 
@@ -355,7 +356,7 @@ def course_snapshot(connection, course_id: str) -> dict[str, object]:
     }
 
 
-def submit_attempt(connection, params: object) -> dict[str, object]:
+def submit_attempt(connection, params: object, *, review_context: dict | None = None) -> dict[str, object]:
     if not isinstance(params, dict) or frozenset(params) != frozenset(
         {"assessmentId", "optionId", "idempotencyKey"}
     ):
@@ -363,7 +364,10 @@ def submit_attempt(connection, params: object) -> dict[str, object]:
     assessment_id = require_opaque_id(params["assessmentId"], "asm")
     option_id = _require_text(params["optionId"], maximum=80)
     idempotency_key = require_idempotency_key(params["idempotencyKey"])
-    request_digest = _digest({"assessmentId": assessment_id, "optionId": option_id})
+    digest_input = {"assessmentId": assessment_id, "optionId": option_id}
+    if review_context is not None:
+        digest_input["review"] = review_context
+    request_digest = _digest(digest_input)
     replay = connection.execute(
         "SELECT request_digest,result_json FROM learning_attempts WHERE idempotency_key=?",
         (idempotency_key,),
@@ -374,8 +378,9 @@ def submit_attempt(connection, params: object) -> dict[str, object]:
         return json.loads(replay["result_json"])
 
     assessment = connection.execute(
-        "SELECT a.*,u.course_id,m.status AS mastery_status "
+        "SELECT a.*,u.course_id,u.point_type,m.status AS mastery_status,m.due_at,c.status AS course_status "
         "FROM learning_assessments a JOIN learning_units u ON u.id=a.unit_id "
+        "JOIN learning_courses c ON c.id=u.course_id "
         "JOIN learning_mastery_states m ON m.unit_id=u.id WHERE a.id=?",
         (assessment_id,),
     ).fetchone()
@@ -384,32 +389,36 @@ def submit_attempt(connection, params: object) -> dict[str, object]:
     options = json.loads(assessment["options_json"])
     if option_id not in {item["optionId"] for item in options}:
         raise CoreProblem("INVALID_PARAMS", "learning option is invalid")
-    if assessment["kind"] == "evidence_choice" and assessment["mastery_status"] not in (
-        "remediation_required", "learning"
-    ):
-        raise CoreProblem("LEARNING_STATE_CONFLICT", "retest is not available")
-    if assessment["kind"] == "claim_choice" and assessment["mastery_status"] != "new":
-        raise CoreProblem("LEARNING_STATE_CONFLICT", "main assessment is already settled")
-
+    latest = latest_unit_attempt(connection, assessment["unit_id"])
     correct = option_id == assessment["correct_option_id"]
     now = _now()
     created_at = _iso(now)
-    if assessment["kind"] == "claim_choice":
-        status = "mastered" if correct else "remediation_required"
-        strength = 100 if correct else 20
-        due_at = _iso(now + timedelta(days=3)) if correct else None
-        counter = "main_attempts"
+    attempt_id = new_opaque_id("latt")
+    counter = "main_attempts" if assessment["kind"] == "claim_choice" else "retest_attempts"
+    review = None
+    if review_context is not None:
+        status, strength, due_at, review = review_transition(
+            assessment, latest, review_context, correct, now, attempt_id)
     else:
-        status = "mastered_after_remediation" if correct else "learning"
-        strength = 70 if correct else 20
-        due_at = _iso(now + timedelta(days=1)) if correct else None
-        counter = "retest_attempts"
+        if assessment["course_status"] != "active" or previous_review(latest) is not None:
+            raise CoreProblem("LEARNING_STATE_CONFLICT", "use the current review queue for this unit")
+        if assessment["kind"] == "evidence_choice" and assessment["mastery_status"] not in ("remediation_required", "learning"):
+            raise CoreProblem("LEARNING_STATE_CONFLICT", "retest is not available")
+        if assessment["kind"] == "claim_choice" and assessment["mastery_status"] != "new":
+            raise CoreProblem("LEARNING_STATE_CONFLICT", "main assessment is already settled")
+        if assessment["kind"] == "claim_choice":
+            status = "mastered" if correct else "remediation_required"
+            strength = 100 if correct else 20
+            due_at = _iso(now + timedelta(days=3)) if correct else None
+        else:
+            status = "mastered_after_remediation" if correct else "learning"
+            strength = 70 if correct else 20
+            due_at = _iso(now + timedelta(days=1)) if correct else None
     connection.execute(
         f"UPDATE learning_mastery_states SET status=?,strength=?,{counter}={counter}+1,"
         "last_correct=?,due_at=?,updated_at=? WHERE unit_id=?",
         (status, strength, int(correct), due_at, created_at, assessment["unit_id"]),
     )
-    attempt_id = new_opaque_id("latt")
     connection.execute(
         "INSERT INTO learning_attempts(id,assessment_id,idempotency_key,request_digest,"
         "selected_option_id,correct,result_json,created_at) VALUES(?,?,?,?,?,?,?,?)",
@@ -434,6 +443,8 @@ def submit_attempt(connection, params: object) -> dict[str, object]:
         },
         "course": course_snapshot(connection, str(assessment["course_id"])),
     }
+    if review is not None:
+        result["review"] = review
     result_json = _json(result)
     connection.execute(
         "UPDATE learning_attempts SET result_json=? WHERE id=?",

@@ -1,6 +1,9 @@
 import type { LoginResponse } from '../types.js'
 import type { QuizApi } from './contracts.js'
 
+export class QuizApiError extends Error {
+  constructor(message: string, readonly status: number) { super(message) }
+}
 interface Options {
   baseUrl?: string
   fetch?: typeof fetch
@@ -22,7 +25,7 @@ export function createQuizApi({ baseUrl = '/nobei/quiz/v1', fetch: fetcher = glo
       const result = await response.json().catch(() => null)
       if (!response.ok || !result || result.code !== 0) {
         const detail = typeof result?.detail === 'string' ? result.detail : null
-        throw new Error(result?.message || detail || `请求失败（HTTP ${response.status}），请检查后端服务`)
+        throw new QuizApiError(result?.message || detail || `请求失败（HTTP ${response.status}），请检查后端服务`, response.status)
       }
       return result.data as T
     } catch (error) {
@@ -37,6 +40,53 @@ export function createQuizApi({ baseUrl = '/nobei/quiz/v1', fetch: fetcher = glo
   }
   return {
     connect,
+    getKnowledgeStats: (query = {}, signal) => {
+      const params = new URLSearchParams({page_size:'20'})
+      for (const [key,value] of Object.entries(query)) if (value !== undefined) params.set(key,String(value))
+      return send(`/question-bank/knowledge-stats?${params}`, 'GET', undefined, 30000, signal)
+    },
+    getKnowledgeHistory: (query, signal) => {
+      const params = new URLSearchParams({page_size:'20'})
+      for (const [key,value] of Object.entries(query)) if (value !== undefined) params.set(key,String(value))
+      return send(`/question-bank/knowledge-stats/history?${params}`, 'GET', undefined, 30000, signal)
+    },
+    getBankSource: id => send(`/question-bank/entries/${id}/source`),
+    setBankSource: (id, input) => send(`/question-bank/entries/${id}/source`, 'PUT', input),
+    generateFromSource: input => send('/quiz/generate/from-source', 'POST', input),
+    previewPaper: input => send('/exam-papers/preview', 'POST', input),
+    createPaper: input => send('/exam-papers', 'POST', input),
+    listPapers: (page = 1) => send(`/exam-papers?page=${page}&page_size=20`),
+    getPaper: id => send(`/exam-papers/${encodeURIComponent(id)}`),
+    reviewPaper: (id, input) => send(`/exam-papers/${encodeURIComponent(id)}/review`, 'PUT', input),
+    startExam: (id, input) => send(`/exam-papers/${encodeURIComponent(id)}/sessions`, 'POST', input),
+    listExams: (page = 1) => send(`/exam-sessions?page=${page}&page_size=20`),
+    getExam: id => send(`/exam-sessions/${encodeURIComponent(id)}`),
+    saveExam: (id, input) => send(`/exam-sessions/${encodeURIComponent(id)}/answers`, 'PUT', input),
+    submitExam: (id, input) => send(`/exam-sessions/${encodeURIComponent(id)}/submit`, 'POST', input),
+    listGoals: (status = 'active', page = 1, signal) => send(`/learning-goals?status=${status}&page=${page}&page_size=20`, 'GET', undefined, 30000, signal),
+    getGoal: (id, signal) => send(`/learning-goals/${encodeURIComponent(id)}`, 'GET', undefined, 30000, signal),
+    createGoal: input => send('/learning-goals', 'POST', input),
+    archiveGoal: (id, input) => send(`/learning-goals/${encodeURIComponent(id)}/archive`, 'PUT', input),
+    getBankEntries: (query = {}, signal) => {
+      const params = new URLSearchParams()
+      for (const [key, value] of Object.entries({...query, page_size: query.page_size ?? 20})) if (value !== undefined) params.set(key, String(value))
+      return send(`/question-bank/entries?${params}`, 'GET', undefined, 30000, signal)
+    },
+    getBankEntry: id => send(`/question-bank/entries/${id}`),
+    getBankHistory: (id, page = 1) => send(`/question-bank/entries/${id}/history?page=${page}&page_size=20`),
+    getBankStats: () => send('/question-bank/stats'),
+    getBankCategories: () => send('/question-bank/categories'),
+    setBankBookmark: (id, bookmarked) => send(`/question-bank/entries/${id}`, 'PUT', {bookmarked}),
+    createBankCategory: name => send('/question-bank/categories', 'POST', {name}),
+    renameBankCategory: (id, name) => send(`/question-bank/categories/${id}`, 'PUT', {name}),
+    deleteBankCategory: id => send(`/question-bank/categories/${id}`, 'DELETE'),
+    setBankCategory: (entryId, categoryId, linked) => send(`/question-bank/entries/${entryId}/categories/${categoryId}`, linked ? 'PUT' : 'DELETE', linked ? {} : undefined),
+    createAttempt: (id, requestId) => send(`/quiz/${encodeURIComponent(id)}/attempts`, 'POST', { request_id: requestId }),
+    listAttempts: id => send(`/quiz/${encodeURIComponent(id)}/attempts`),
+    getAttempt: id => send(`/quiz/attempts/${encodeURIComponent(id)}`),
+    saveAttempt: (id, input) => send(`/quiz/attempts/${encodeURIComponent(id)}/answers`, 'PUT', input),
+    submitAttempt: (id, input) => send(`/quiz/attempts/${encodeURIComponent(id)}/submit`, 'POST', input),
+    generateAttemptReport: id => send(`/quiz/attempts/${encodeURIComponent(id)}/report`, 'POST', {}, 600000),
     async generateQuiz(input) {
       if (input.source.kind === 'external') throw new Error('此知识来源需要宿主提供来源适配器')
       const { source } = input
