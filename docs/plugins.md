@@ -2,7 +2,7 @@
 
 两份宿主包装共用 BetterLearn MCP，不修改学习界面、不访问宿主凭证、不使用宿主模型替代 BetterLearn 的生成 API。先打开支持 MCP 的 BetterLearn。插件本身不会另起业务后端，也不会删除数据锁。
 
-## 当前机器
+## 本机安装记录（2026-09-18）
 
 - Codex：`betterlearn@personal` 已安装并启用，源位于 `~/plugins/betterlearn`，个人目录文件为 `~/.agents/plugins/marketplace.json`。新开任务后载入。
 - Claude Code：`~/.claude/skills/betterlearn` 为本地插件，标识 `betterlearn@skills-dir`。新会话自动载入；已有会话可 `/reload-plugins`。
@@ -36,7 +36,9 @@ claude --plugin-dir /absolute/path/to/dist/plugins/claude/betterlearn
 
 本机 Claude Code 2.1.273 还支持 `claude plugin init betterlearn --with skills mcp`，创建 `~/.claude/skills/betterlearn`；将准备包内容放入这个新目录后会作为 `betterlearn@skills-dir` 自动加载。不要覆盖已有同名插件；初始化产生的示例 skill 应移除。旧版本可使用 `--plugin-dir`，或按官方 marketplace 流程安装。
 
-## 验证与准确范围
+## 验证记录与准确范围
+
+以下按实施顺序保留 7 → 12 → 13 → 17 工具的阶段记录。当前仓库的工具定义为 17 项；最近一次实际安装记录见文末。记录中的路径和 installed / enabled 状态仅描述当时机器，不代表其他机器已安装。
 
 以下为早期实际安装验证记录（当时为 7 个工具）：
 

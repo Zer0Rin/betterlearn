@@ -1,4 +1,6 @@
-# BetterLearn 本地安装与维护
+# BetterLearn DSH 插件安装与维护（历史版本）
+
+> **历史文档：仅适用于旧 DSH 插件版本，不适用于当前独立 Web 或 Electron 应用。** 当前安装请从 [README 快速开始](../README.md#快速开始)、[独立 Web 说明](standalone-web.md) 或 [桌面版说明](desktop.md) 进入。下文的 DSH/MySQL 依赖、CLI 命令和仅备份 Core 的范围均为旧版行为；当前备份与恢复规则见 [独立 Web 维护说明](standalone-web.md#备份与恢复)。不要将旧 DSH home 直接用于当前版本。
 
 需要 macOS/Linux、Node.js24、Python3.12，以及已经安装的 DeepSeek Harness（DSH）0.1.0-rc.7 或0.1.0-rc.8。这是DSH插件，不会安装系统服务。安装会下载指定版本的DSH base/web-app及Python依赖；产品本身从交付的tarball安装。不要把数据目录放进共享同步目录。
 

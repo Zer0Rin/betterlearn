@@ -1,4 +1,6 @@
-# 验证说明
+# DSH 阶段验证说明（历史记录）
+
+> 本文保留旧 DSH 插件阶段的计划、命令和验收结果，不代表当前独立 Web / Electron 的运行方式或最新测试结果。当前开发命令见 [README](../README.md#开发与验证)，架构见 [架构说明](architecture.md)，CI 检查范围以 [工作流](../.github/workflows/ci.yml) 为准。
 
 ## 当前可证明的能力
 
