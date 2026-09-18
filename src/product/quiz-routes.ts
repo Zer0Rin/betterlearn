@@ -50,6 +50,7 @@ const routes: Array<[RegExp, readonly string[]]> = [
   [/^\/knowledge\/documents$/, ['GET', 'POST']],
   [new RegExp(`^/knowledge/documents/${ID}$`), ['GET', 'DELETE']],
   [new RegExp(`^/knowledge/documents/${ID}/content$`), ['GET']],
+  [new RegExp(`^/knowledge/documents/${ID}/vectorize$`), ['POST']],
 ]
 
 function validExamQuery(path: string, params: URLSearchParams, method?: string): boolean {

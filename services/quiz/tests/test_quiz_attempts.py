@@ -248,3 +248,34 @@ async def test_snapshot_zero_score_and_report_restart_recovery(api, model):
     zero = await create(client, body, 'zero')
     result = (await submit(client, zero, zero_body)).json()['data']
     assert result['accuracy'] == 0 and result['status'] == 'submitted' and result['submitted_at']
+
+
+@pytest.mark.parametrize('submitted', [False, True])
+async def test_legacy_cannot_create_round_alongside_modern_attempt(api, model, submitted):
+    client, uid, body = api
+    attempt = await create(client, body)
+    if submitted:
+        assert (await submit(client, attempt, body)).status_code == 200
+    def snapshot():
+        with db.transaction() as cur:
+            return {table: [tuple(row) for row in cur.execute('SELECT * FROM ' + table)]
+                    for table in ['quiz_attempts', 'quiz_attempt_answers', 'question_bank_entries', 'users']}
+    before = snapshot()
+    response = await client.post('/api/v1/report/generate', json=body)
+    assert response.status_code == 409, response.text
+    assert snapshot() == before
+    model.assert_not_awaited()
+    if not submitted:
+        assert (await submit(client, attempt, body)).json()['data']['xp_gain'] == 18
+    assert (await client.post(f"/api/v1/quiz/attempts/{attempt['attempt_id']}/report", json={})).status_code == 200
+
+
+async def test_legacy_saved_report_replay_after_modern_round_is_read_only(api, model):
+    client, uid, body = api
+    saved = await client.post('/api/v1/report/generate', json=body)
+    assert saved.status_code == 200
+    await create(client, body)
+    assert (await client.post('/api/v1/report/generate', json=body)).json() == saved.json()
+    assert model.await_count == 1
+    assert len((await client.get(f"/api/v1/quiz/{body['quiz_id']}/attempts")).json()['data']['items']) == 2
+    assert (await users.get_user_by_id(uid))['total_xp'] == 18

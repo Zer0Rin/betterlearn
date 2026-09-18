@@ -1,3 +1,4 @@
+import { ArrowRight, FileUp, Layers3, TextCursorInput } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import {
   defaultPasteFilename,
@@ -183,11 +184,11 @@ export function ImportWorkspace({
   }
 
   if (source === 'landing') {
-    return <section className="nobei-client__import" aria-labelledby="nobei-import-title">
+    return <section className="nobei-client__import nobei-client__import--sources" aria-labelledby="nobei-import-title">
       <header>
         <p className="nobei-client__eyebrow">新建学习材料</p>
         <h2 id="nobei-import-title">选择知识来源</h2>
-        <p>{standalone ? '从本地知识库、文件或粘贴正文开始。' : '从已有 DSH 问答、本地知识库、文件或粘贴正文开始。'}每次导入会创建一个独立提取任务。</p>
+        <p>{standalone ? '从本地知识库、文件或粘贴正文开始。' : '从已有 DSH 问答、本地知识库、文件或粘贴正文开始。'}请选择一种方式，下一步预览材料。</p>
       </header>
       <div className="nobei-client__source-cards">
         {!standalone && <button type="button" aria-label="从 DSH 对话提取" disabled={submitting} onClick={() => setSource('dsh')}>
@@ -195,13 +196,19 @@ export function ImportWorkspace({
         </button>}
         <button type="button" aria-label="从知识库提取" disabled={submitting || !previewKnowledgeBase}
           onClick={() => setSource('knowledge-base')}>
-          <strong>从知识库提取</strong><span>选择已上传到本地知识库的文档，按原文合并后提取。</span>
+          {standalone && <span className="nobei-source-icon" aria-hidden="true"><Layers3 size={22} strokeWidth={1.7}/></span>}
+          <span className="nobei-source-copy"><strong>从知识库提取</strong><span>选择已上传到本地知识库的文档，按原文合并后提取。</span></span>
+          {standalone && <span className="nobei-source-action" aria-hidden="true">选择文档<ArrowRight size={17}/></span>}
         </button>
         <button type="button" aria-label="上传文件" disabled={submitting} onClick={() => { setMode('file'); setSource('document') }}>
-          <strong>上传文件</strong><span>支持 TXT、Markdown 和有文字层的 PDF。</span>
+          {standalone && <span className="nobei-source-icon" aria-hidden="true"><FileUp size={22} strokeWidth={1.7}/></span>}
+          <span className="nobei-source-copy"><strong>上传文件</strong><span>支持 TXT、Markdown 和有文字层的 PDF。</span></span>
+          {standalone && <span className="nobei-source-action" aria-hidden="true">选择文件<ArrowRight size={17}/></span>}
         </button>
         <button type="button" aria-label="粘贴正文" disabled={submitting} onClick={() => { setMode('paste'); setSource('document') }}>
-          <strong>粘贴正文</strong><span>直接粘贴一段需要整理和复习的材料。</span>
+          {standalone && <span className="nobei-source-icon" aria-hidden="true"><TextCursorInput size={22} strokeWidth={1.7}/></span>}
+          <span className="nobei-source-copy"><strong>粘贴正文</strong><span>直接粘贴一段需要整理和复习的材料。</span></span>
+          {standalone && <span className="nobei-source-action" aria-hidden="true">输入正文<ArrowRight size={17}/></span>}
         </button>
       </div>
       {!ordinarySession && <p className="nobei-client__error" role="alert">

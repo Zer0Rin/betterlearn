@@ -213,6 +213,7 @@ html[data-desktop=darwin] .desktop-titlebar { background:transparent; }
 
 /* Two independent layers: window material below, component fills above. */
 .workbench-window {
+  --text-backing-strength: clamp(0, calc(1 - (var(--component-opacity, .85) + var(--background-opacity, .35)) / 2), 1);
   --color-bg-surface: rgb(255 255 255 / var(--component-opacity, .85));
   --color-bg-page: rgb(247 248 250 / var(--component-opacity, .85));
   --color-bg-sunken: rgb(240 242 245 / var(--component-opacity, .85));
@@ -225,7 +226,9 @@ html[data-native-glass=true] .workbench-window { background:transparent; }
 .workbench-window .workbench-titlebar > .glass-material { display:none; }
 .workbench-window .standalone-app .standalone-sidebar,
 .workbench-window .desktop-titlebar,
-.workbench-window .workbench-titlebar { background:var(--color-bg-surface); }
+.workbench-window .workbench-titlebar {
+  background:var(--color-bg-surface);
+}
 .workbench-window :is(.appearance-settings,.standalone-connection,.standalone-page-heading,.standalone-model-heading) {
   background:var(--color-bg-surface);
   border:1px solid #8a94a526;
@@ -236,17 +239,17 @@ html[data-native-glass=true] .workbench-window { background:transparent; }
 .workbench-window .standalone-app :is(input:not([type=range]):not([type=checkbox]),textarea,select) {
   background:var(--color-bg-surface);
 }
-.workbench-window .standalone-app .betterlearn-library[data-presentation=desktop] .betterlearn-library__heading-actions button,
+.workbench-window .standalone-app .betterlearn-library[data-presentation=desktop] .betterlearn-library__heading-actions button:not(.betterlearn-library__create),
 .workbench-window .standalone-app .betterlearn-library[data-presentation=desktop] .betterlearn-library__empty button {
   background:var(--color-bg-surface);
 }
 .component-appearance { margin-top:28px; padding-top:24px; border-top:1px solid var(--color-separator); }
 .component-appearance p { color:var(--color-text-secondary); font-size:12px; line-height:1.7; }
 @media (prefers-reduced-transparency:reduce) {
-  .workbench-window { --component-opacity:1!important; --background-opacity:1!important; }
+  .workbench-window { --component-opacity:1!important; --background-opacity:1!important; --text-backing-strength:0; }
 }
 @media (forced-colors:active) {
-  .workbench-window { background:Canvas!important; }
+  .workbench-window { background:Canvas!important; --text-backing-strength:0; }
 }
 html[data-desktop] .workbench-window .desktop-titlebar { background:var(--color-bg-surface); }
 
@@ -256,4 +259,34 @@ html[data-desktop] .workbench-window .zl-heading {
   border:1px solid #8a94a526;
   border-radius:12px;
   padding:24px;
+}
+
+/* Protect the glyphs, not the whole window: both material sliders retain their range. */
+.workbench-window .standalone-app { --color-text-secondary:#465165; }
+.workbench-window :is(.standalone-nav-group,.standalone-brand,.standalone-local,.workspace-location,
+  .standalone-sidebar nav button > span,.workspace-sidebar-footer button > span,
+  .standalone-page-heading,.workspace-extraction-heading > div,.betterlearn-library__heading h1,
+  .betterlearn-library__count,.betterlearn-library__intro,.betterlearn-library__book-copy,
+  .nobei-source-copy,.nobei-client__import > header,.appearance-slider-heading,
+  .appearance-slider-labels,.appearance-settings > p,.component-appearance > p,
+  .standalone-model-heading,.standalone-connection label,.standalone-connection header,
+  .zl-heading,.zl-muted) {
+  text-shadow:0 1px 2px rgb(255 255 255 / var(--text-backing-strength)),
+    0 0 5px rgb(255 255 255 / var(--text-backing-strength));
+}
+/* Sustained reading and editing have a local paper surface. */
+.workbench-window .standalone-app :is(.betterlearn-learning__lesson,.nobei-client__evidence) {
+  background:rgb(255 255 255 / max(.88, var(--component-opacity, .85)));
+}
+/* Match component opacity without a hidden minimum; blur separates scrolling content. */
+.workbench-window .workspace-toolbar {
+  background:var(--color-bg-surface);
+  -webkit-backdrop-filter:blur(16px);
+  backdrop-filter:blur(16px);
+}
+@media (prefers-reduced-transparency:reduce), (forced-colors:active) {
+  .workbench-window .workspace-toolbar { -webkit-backdrop-filter:none; backdrop-filter:none; }
+}
+@media (forced-colors:active) {
+  .workbench-window .standalone-app * { text-shadow:none; }
 }

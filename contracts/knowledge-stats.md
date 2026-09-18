@@ -57,3 +57,8 @@ calls; no Core mastery updates. Runtime scans the user's matching history,
 so pagination bounds response size but does not bound aggregation work.
 
 Frontend: 学习统计 displays these paginated version groups and their answer history, with links to the exact quiz attempt. It renders backend counts/percentages without recomputing attribution or mastery.
+
+Learning evidence excludes empty selected-answer arrays (both omitted exam answers
+and explicitly cleared answers), including existing historical projections.
+Exam grades and question-bank wrong-answer history still include unanswered items
+as incorrect. This read filter requires no migration or score rewrite.

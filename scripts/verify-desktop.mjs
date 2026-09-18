@@ -97,6 +97,9 @@ try {
   await page.getByLabel('文本模型服务地址', { exact: true }).fill(fake.url)
   await page.getByLabel('文本模型名称', { exact: true }).fill('fake')
   await page.getByLabel('文本模型密钥', { exact: true }).fill('desktop-secret')
+  await page.getByLabel('Embedding 模型服务地址', { exact: true }).fill(fake.url)
+  await page.getByLabel('Embedding 模型名称', { exact: true }).fill('fake-embedding')
+  await page.getByLabel('Embedding 模型密钥', { exact: true }).fill('fake-vector-secret')
   await page.getByRole('button', { name: '保存设置', exact: true }).click()
   await page.getByText('设置已保存。新的任务将使用更新后的模型。', { exact: true }).waitFor()
   const settings = await page.evaluate(async () => {
@@ -169,6 +172,21 @@ try {
     assert.ok(!history.isError)
     assert.equal(JSON.parse(history.content[0].text).total,1)
   } finally { await mcp.close() }
+  // Upload/list/restart are free of model calls; explicit vectorization is the only launch.
+  await page.getByRole('button', { name: '知识库', exact: true }).click()
+  const beforeUpload = fake.calls.length
+  await page.getByLabel('上传知识库文档').setInputFiles({ name: 'manual-vector.txt', mimeType: 'text/plain', buffer: Buffer.from(providerFixture.sourceText) })
+  await page.getByText('待向量化', { exact: true }).waitFor()
+  await page.getByRole('button', { name: '刷新列表', exact: true }).click()
+  assert.equal(fake.calls.length, beforeUpload)
+  await captureLayers('manual-vectorization')
+  await page.getByRole('button', { name: '开始向量化', exact: true }).click()
+  await page.getByText('已就绪', { exact: true }).waitFor({ timeout: 60000 })
+  assert.ok(fake.calls.length > beforeUpload)
+  const afterVectorization = fake.calls.length
+  await page.getByLabel('上传知识库文档').setInputFiles({ name: 'remain-local.txt', mimeType: 'text/plain', buffer: Buffer.from('Keep this document local.') })
+  await page.getByText('待向量化', { exact: true }).waitFor()
+  assert.equal(fake.calls.length, afterVectorization)
   const learning = await verifyDesktopLearning(page, providerFixture.sourceText)
   await captureLayers('exam-draft-native')
   const calls = fake.calls.length
@@ -188,6 +206,9 @@ try {
   await page.getByRole('button', {name:'设置',exact:true}).click()
   assert.equal(await page.locator('#glass-frost').inputValue(), '20')
   assert.equal(await page.locator('#component-opacity').inputValue(), '90')
+  const docStates = await page.evaluate(() => fetch('/nobei/quiz/v1/knowledge/documents').then(r => r.json()))
+  assert.equal(docStates.data.items.find(d => d.file_name === 'remain-local.txt').status, 'uploaded')
+  assert.equal(docStates.data.items.find(d => d.file_name === 'manual-vector.txt').status, 'ready')
   await verifyDesktopLearningRestart(page, learning)
   await captureLayers('knowledge-history-native')
   assert.equal(fake.calls.length, calls)

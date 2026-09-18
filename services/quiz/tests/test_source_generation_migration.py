@@ -24,10 +24,10 @@ async def test_v4_generation_upgrade_backup_and_rollback(database, monkeypatch, 
     else:
         await db.init_db()
     with sqlite3.connect(database) as con:
-        assert con.execute('PRAGMA user_version').fetchone()[0] == (4 if failure else 7)
+        assert con.execute('PRAGMA user_version').fetchone()[0] == (4 if failure else 8)
         assert con.execute('SELECT total_xp FROM users').fetchone()[0] == 77
         assert not con.execute("SELECT 1 FROM sqlite_master WHERE name='bad_partial'").fetchone()
-    backups = list(database.parent.glob('*.pre-v7-*.bak'))
+    backups = list(database.parent.glob('*.pre-v8-*.bak'))
     assert len(backups) == 1
     with sqlite3.connect(backups[0]) as con:
         assert con.execute('PRAGMA user_version').fetchone()[0] == 4
@@ -35,4 +35,4 @@ async def test_v4_generation_upgrade_backup_and_rollback(database, monkeypatch, 
     if not failure:
         await db.close_db()
         await db.init_db()
-        assert len(list(database.parent.glob('*.pre-v7-*.bak'))) == 1
+        assert len(list(database.parent.glob('*.pre-v8-*.bak'))) == 1

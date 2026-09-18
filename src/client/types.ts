@@ -295,7 +295,7 @@ export interface KnowledgeBaseDocumentSummary {
   fileName: string
   fileType: string
   fileSize: number
-  status: 'processing' | 'ready' | 'failed'
+  status: 'uploaded' | 'processing' | 'ready' | 'failed'
   chunkCount: number
   errorMessage?: string
   createdAt: string

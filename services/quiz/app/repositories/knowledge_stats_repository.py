@@ -27,6 +27,7 @@ def _query(user_id, query):
         JOIN quiz_attempt_answers r ON r.attempt_id=a.attempt_id AND r.question_id=e.question_id
         WHERE e.user_id=? AND a.user_id=? AND a.status='submitted'
         AND a.legacy_records_json IS NULL AND r.is_correct IN (0,1)
+        AND json_array_length(r.selected_answers_json)>0
         AND b.source_json IS NOT NULL AND b.source_revision>0"""
     values = [user_id, user_id]
     for name in ('knowledge_point_id', 'content_version'):

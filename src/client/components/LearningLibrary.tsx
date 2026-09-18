@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { BookOpen, Plus } from 'lucide-react'
+import { useRef, useState } from 'react'
+import { ArrowRight, BookOpen, Check, FileText, Plus, Search, X } from 'lucide-react'
 import type { LearningBook } from '../learning-book-library.js'
 import type { KnowledgePointSnapshot } from '../types.js'
 
@@ -55,6 +55,16 @@ export function LearningBookshelf({
 }: LearningBookshelfProps) {
   const desktop = presentation === 'desktop'
   const [managing, setManaging] = useState(false)
+  const [query, setQuery] = useState('')
+  const searchInput = useRef<HTMLInputElement>(null)
+  const [filter, setFilter] = useState<'all' | 'active' | 'new' | 'done'>('all')
+  const bookState = (book: LearningBook) => book.progress && book.progress.total > 0 && book.progress.completed >= book.progress.total
+    ? 'done' : book.courseId || book.progress ? 'active' : 'new'
+  const visibleBooks = desktop ? books.filter(book =>
+    (filter === 'all' || bookState(book) === filter) && book.title.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())) : books
+  const continueBook = books.find(book => bookState(book) === 'active')
+  const filters = [{id:'all', label:'全部'}, {id:'active', label:'学习中'}, {id:'new', label:'未开始'}, {id:'done', label:'已完成'}] as const
+
   const [deleteBookId, setDeleteBookId] = useState<string>()
   const [deletingBookId, setDeletingBookId] = useState<string>()
   const [deleteError, setDeleteError] = useState<string>()
@@ -94,7 +104,7 @@ export function LearningBookshelf({
       <header className="betterlearn-library__heading">
         <div>
           {desktop ? <>
-            <h1>学习书</h1>
+            <h1>我的学习书</h1>
             <span className="betterlearn-library__count">{books.length} 本</span>
           </> : <>
             <p>Learning Space</p>
@@ -113,19 +123,32 @@ export function LearningBookshelf({
           </button>}
         </div>}
       </header>
-      {desktop && books.length > 0 && <p className="betterlearn-library__intro">把整理过的知识，变成自己的理解。选择一本学习书，继续学习。</p>}
+      {desktop && <p className="betterlearn-library__intro">把读过的资料，变成真正掌握的知识。</p>}
+      {desktop && continueBook && !managing && <section className="bookshelf-continue" aria-label="继续学习">
+        <span className="bookshelf-continue__icon" aria-hidden="true"><BookOpen size={24}/></span>
+        <div><span>接着学，一点点积累</span><h2>{continueBook.title}</h2><p>{continueBook.progress ? `已完成 ${continueBook.progress.completed} / ${continueBook.progress.total} 个知识点` : `${continueBook.points.length} 个知识点等你探索`}</p></div>
+        <button type="button" onClick={() => onOpenBook(continueBook)}>继续学习 <ArrowRight size={16} aria-hidden="true"/></button>
+      </section>}
+      {desktop && books.length > 0 && <div className="bookshelf-tools">
+        <div className="bookshelf-filters" role="group" aria-label="按学习状态筛选">{filters.map(item => <button key={item.id} type="button" aria-pressed={filter === item.id}
+          disabled={deletingBookId !== undefined} onClick={() => { setFilter(item.id); cancelDelete() }}>{item.label}<span>{books.filter(book => item.id === 'all' || bookState(book) === item.id).length}</span></button>)}</div>
+        <label className="bookshelf-search"><Search size={16} aria-hidden="true"/><span className="bookshelf-sr-only">搜索学习书</span><input ref={searchInput} type="search" aria-label="搜索学习书" placeholder="搜索书名" value={query} disabled={deletingBookId !== undefined} onChange={event => {setQuery(event.currentTarget.value); cancelDelete()}}/>{query && <button type="button" aria-label="清除搜索" disabled={deletingBookId !== undefined} onClick={() => {setQuery('');searchInput.current?.focus()}}><X size={14} aria-hidden="true"/></button>}</label>
+        <span className="bookshelf-sr-only" role="status">显示 {visibleBooks.length} 本学习书</span>
+      </div>}
+      {desktop && books.length > 0 && visibleBooks.length === 0 && <section className="bookshelf-no-results"><Search size={26} aria-hidden="true"/><h2>没有找到符合条件的学习书</h2><p>{query.trim() ? `试试其他书名，或清除“${query.trim()}”和当前筛选。` : '这个分类下暂时没有学习书，可以查看全部书籍。'}</p><button type="button" onClick={() => {setQuery('');setFilter('all');searchInput.current?.focus()}}>清除筛选</button></section>}
       {storageWarning && <p className="betterlearn-library__warning">{storageWarning}</p>}
       {books.length === 0 ? (
         <section className="betterlearn-library__empty">
-          {desktop ? <BookOpen size={42} strokeWidth={1.2} aria-hidden="true" /> : <span>空书架</span>}
+          {desktop ? <div className="bookshelf-empty-art" aria-hidden="true"><span/><span/><div><BookOpen size={32} strokeWidth={1.3}/><b>Better<br/>Learn.</b><small>从好奇，到理解</small></div></div> : <span>空书架</span>}
           <h2>还没有学习书</h2>
-          <p>{desktop ? '从资料中提取知识点，整理成第一本学习书。' : '先完成一次知识提取，并把确认后的知识点整理为学习书。'}</p>
+          <p>{desktop ? '让第一份资料，在这里长成一本学习书。' : '先完成一次知识提取，并把确认后的知识点整理为学习书。'}</p>
           <button type="button" data-testid="learning-library-empty-action"
-            onClick={onOpenKnowledge}>{desktop ? '导入资料' : '去知识点入口'}</button>
+            onClick={onOpenKnowledge}>{desktop ? '导入资料' : '去知识点入口'}{desktop && <ArrowRight size={15} aria-hidden="true"/>}</button>
+          {desktop && <ol className="bookshelf-steps"><li><FileText size={16} aria-hidden="true"/><span>导入资料</span></li><li><Check size={16} aria-hidden="true"/><span>核对知识点</span></li><li><BookOpen size={16} aria-hidden="true"/><span>开始学习</span></li></ol>}
         </section>
       ) : (
         <section className="betterlearn-library__shelf" aria-label="学习书">
-          {books.map((book, index) => (
+          {visibleBooks.map((book, index) => (
             <article key={book.bookId} className="betterlearn-library__book-shell"
               data-managing={managing ? 'true' : 'false'}>
               <button type="button" className="betterlearn-library__book"

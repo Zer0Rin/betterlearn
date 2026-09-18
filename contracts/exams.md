@@ -64,7 +64,7 @@ started_at/deadline_at取服务端UTC，毫秒精度，重启/备份恢复不延
 
 ## 交卷与结果
 
-submit输入与草稿相同。截止前CAS检查通过后以该请求的全量答案交卷；未答或空选项算错。到期后只用此前保存的草稿结算，忽略迟到请求的答案及revision，不能靠网络延迟追加正确答案。旧请求仍需满足JSON基础Schema。超时submitted_at设为deadline，finalized_at记录实际结算时刻。
+submit输入与草稿相同。截止前CAS检查通过后以该请求的全量答案交卷；未答或空选项算错并保留错题记录，但不进入知识点学习证据、统计历史或目标数量门槛；历史投影同样按空答案过滤。到期后只用此前保存的草稿结算，忽略迟到请求的答案及revision，不能靠网络延迟追加正确答案。旧请求仍需满足JSON基础Schema。超时submitted_at设为deadline，finalized_at记录实际结算时刻。
 
 单题等权，多选严格集合匹配，无部分分。复用DeepTutor改编grade_choice；总accuracy沿用普通练习的整数百分比，by_source提供各来源的正确数量/count和两位百分比。结果另含未答数量、完整标准答案和判分、reason（submitted/timeout）、attempt_id/quiz_id及xp_gain=0。
 

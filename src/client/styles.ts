@@ -160,6 +160,10 @@ export const CLIENT_CSS = `
 .nobei-client button { cursor: pointer; }
 .nobei-client button:disabled { cursor: not-allowed; opacity: 0.52; }
 .nobei-client button:focus-visible, .nobei-client input:focus-visible, .nobei-client textarea:focus-visible { outline: 3px solid color-mix(in srgb, var(--nobei-action) 32%, transparent); outline-offset: 2px; }
+/* Keep the exit action outside phase-specific notices and compact mastheads. */
+.nobei-client__navigation { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 16px; margin-block-end: 20px; }
+.nobei-client__navigation button { display: inline-flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.nobei-client__navigation span { color: var(--color-text-secondary, #465165); font-size: .875em; }
 .nobei-client__masthead { display: flex; align-items: end; justify-content: space-between; gap: 24px; max-width: 1480px; margin: 0 auto 24px; padding-block-end: 18px; border-block-end: 1px solid var(--nobei-line); }
 .nobei-client__brand, .nobei-client__eyebrow { color: var(--nobei-action); font-family: ui-monospace, "SFMono-Regular", Consolas, monospace; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
 .nobei-client__masthead h1 { margin-block-start: 4px; font-size: clamp(1.45rem, 3vw, 2.45rem); }

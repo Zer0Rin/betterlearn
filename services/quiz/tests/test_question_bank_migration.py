@@ -41,13 +41,13 @@ async def test_v2_backfill_trust_boundary_and_no_double_count(tmp_path, monkeypa
         await db.close_db()
         await db.init_db()
         assert (await bank.stats(1))['wrong'] == 1
-        backups = list(tmp_path.glob('v2.sqlite.pre-v7-*.bak'))
+        backups = list(tmp_path.glob('v2.sqlite.pre-v8-*.bak'))
         assert len(backups) == 1
         with sqlite3.connect(backups[0]) as backup:
             assert backup.execute('PRAGMA user_version').fetchone()[0] == 2
             assert backup.execute('SELECT total_xp FROM users').fetchone()[0] == 18
         with db.transaction() as cur:
-            assert cur.execute('PRAGMA user_version').fetchone()[0] == 7
+            assert cur.execute('PRAGMA user_version').fetchone()[0] == 8
             assert cur.execute('SELECT total_xp FROM users').fetchone()[0] == 18
             assert cur.execute('SELECT COUNT(*) FROM question_bank_attempts WHERE source_json IS NOT NULL OR source_revision IS NOT NULL').fetchone()[0] == 0
             assert cur.execute('SELECT COUNT(*) FROM question_bank_sources').fetchone()[0] == 0
@@ -75,7 +75,7 @@ async def test_v2_bank_migration_failure_is_atomic(database, monkeypatch):
         assert conn.execute('PRAGMA user_version').fetchone()[0] == 2
         assert conn.execute('SELECT total_xp FROM users').fetchone()[0] == 25
         assert not conn.execute("SELECT 1 FROM sqlite_master WHERE name='bank_partial'").fetchone()
-    backup_path = next(database.parent.glob('*.pre-v7-*.bak'))
+    backup_path = next(database.parent.glob('*.pre-v8-*.bak'))
     with sqlite3.connect(backup_path) as backup:
         assert backup.execute('PRAGMA user_version').fetchone()[0] == 2
         assert backup.execute('SELECT total_xp FROM users').fetchone()[0] == 25

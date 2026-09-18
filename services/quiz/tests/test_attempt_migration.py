@@ -28,13 +28,13 @@ async def test_v1_backup_and_history_import(tmp_path, monkeypatch, sample_report
     try:
         await db.init_db()
         with sqlite3.connect(path) as conn:
-            assert conn.execute('PRAGMA user_version').fetchone()[0] == 7
+            assert conn.execute('PRAGMA user_version').fetchone()[0] == 8
             assert conn.execute('SELECT accuracy, submitted_at FROM quiz_attempts').fetchone() == (80, '2026-01-01 12:00:00')
             assert conn.execute('SELECT total_xp FROM users').fetchone()[0] == 18
             assert conn.execute('SELECT status FROM quiz_attempt_reports').fetchone()[0] == 'completed'
             assert conn.execute('SELECT COUNT(*) FROM question_bank_sources').fetchone()[0] == 0
             assert conn.execute('SELECT COUNT(*) FROM question_bank_attempts').fetchone()[0] == 0
-        backups = list(tmp_path.glob('quiz.sqlite.pre-v7-*.bak'))
+        backups = list(tmp_path.glob('quiz.sqlite.pre-v8-*.bak'))
         assert len(backups) == 1
         with sqlite3.connect(backups[0]) as conn:
             assert conn.execute('PRAGMA integrity_check').fetchone()[0] == 'ok'

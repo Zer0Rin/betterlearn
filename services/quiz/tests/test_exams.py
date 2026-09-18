@@ -127,7 +127,7 @@ async def test_submission_hidden_answers_report_and_history(api, monkeypatch, mo
     report = await ok(await client.post('/api/v1/quiz/attempts/' + attempt + '/report', json={}))
     assert report['accuracy'] == 80
     stats = await ok(await client.get('/api/v1/question-bank/knowledge-stats'))
-    assert sum(g['answer_count'] for g in stats['items']) == 5
+    assert sum(g['answer_count'] for g in stats['items']) == 4
     await db.close_db()
     await db.init_db()
     assert await ok(await client.get(path)) == final
@@ -295,3 +295,40 @@ async def test_exam_projection_opens_history_detail_without_optional_summary(api
     detail = await ok(await client.get('/api/v1/user/quizzes/' + submitted['result']['quiz_id']))
     assert detail['summary'] == ''
     assert len(detail['questions']) == 5
+
+
+@pytest.mark.parametrize('explicit_empty', [False, True])
+async def test_unanswered_preserves_exam_grade_and_bank_but_not_learning_evidence(api, monkeypatch, explicit_empty):
+    from tests.test_learning_goals import payload, create_goal, detail
+    client, uid, _ = api
+    p = await paper(client, await setup_paper(client, monkeypatch))
+    p = await ok(await approve(client, p))
+    session = await ok(await start(client, p))
+    records = answers(p)
+    if explicit_empty:
+        for record in records[1:]:
+            record['selected_answers'] = []
+    else:
+        records = records[:1]
+    request = {'expected_revision': 0, 'answer_records': records}
+    path = S + '/' + session['session_id'] + '/submit'
+    final = await ok(await client.post(path, json=request))
+    assert final['result']['unanswered_count'] == 4
+    assert final['result']['accuracy'] == 20
+    assert await ok(await client.post(path, json=request)) == final
+    # Keep old full projections, including explicit clearing, and reopen them.
+    with db.transaction() as cur:
+        assert cur.execute('SELECT COUNT(*) FROM question_bank_attempts').fetchone()[0] == 5
+    await db.close_db()
+    await db.init_db()
+    stats = await ok(await client.get('/api/v1/question-bank/knowledge-stats'))
+    assert sum(s['answer_count'] for s in stats['items']) == 1
+    assert sum(s['distinct_question_count'] for s in stats['items']) == 1
+    scope = {k: exam_source('1')[k] for k in ['knowledge_point_id', 'content_version']}
+    evidence = await ok(await client.get('/api/v1/question-bank/knowledge-assessment', params=scope))
+    assert evidence['answer_count'] == evidence['distinct_question_count'] == len(evidence['basis']) == 1
+    history = await ok(await client.get('/api/v1/question-bank/knowledge-stats/history', params=scope))
+    assert history['total'] == 1
+    goal = await create_goal(client, payload(source=exam_source('1'), target_percent=10, min_distinct_questions=3))
+    progress = (await detail(client, goal))['progress']
+    assert progress['distinct_question_count'] == 1 and not progress['criteria_met']

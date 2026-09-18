@@ -59,14 +59,12 @@ async def test_handle_upload_success_saves_file_and_creates_record(tmp_path):
     ) as mock_create_task:
         result = await knowledge_service.handle_upload(1, "sample.txt", b"hello world")
 
-    assert result.status == "processing"
+    assert result.status == "uploaded"
     assert result.file_name == "sample.txt"
     assert result.doc_id.startswith("doc_")
 
     create_document_mock.assert_called_once()
-    mock_create_task.assert_called_once()
-    # asyncio.create_task 被 mock 掉，需手动关闭协程避免 "never awaited" 警告
-    mock_create_task.call_args[0][0].close()
+    mock_create_task.assert_not_called()
 
     saved_file = tmp_path / f"{result.doc_id}.txt"
     assert saved_file.exists()
@@ -321,7 +319,7 @@ async def test_delete_failure_preserves_record_and_retry_finishes(database, tmp_
     uid = (await user_repository.create_user('delete-retry'))['id']
     await knowledge_repository.create_document('doc_retry', uid, 'a.txt', 'txt', 7)
     await knowledge_repository.update_document_status('doc_retry', 'ready', 1)
-    monkeypatch.setattr(get_settings(), 'kb_upload_dir', str(tmp_path))
+    monkeypatch.setattr(knowledge_service.get_settings(), 'kb_upload_dir', str(tmp_path))
     original = tmp_path / 'doc_retry.txt'
     original.write_text('content')
     vectors = {'doc_retry'}
@@ -358,7 +356,8 @@ async def test_delete_processing_document_rejected_before_cleanup(database, tmp_
 
     uid = (await user_repository.create_user('delete-processing'))['id']
     await knowledge_repository.create_document('doc_busy', uid, 'a.txt', 'txt', 7)
-    monkeypatch.setattr(get_settings(), 'kb_upload_dir', str(tmp_path))
+    await knowledge_repository.claim_vectorization('doc_busy', uid)
+    monkeypatch.setattr(knowledge_service.get_settings(), 'kb_upload_dir', str(tmp_path))
     original = tmp_path / 'doc_busy.txt'
     original.write_text('content')
     with patch('app.services.knowledge_service.vector_store_service.delete_document_vectors') as vectors:
@@ -367,3 +366,26 @@ async def test_delete_processing_document_rejected_before_cleanup(database, tmp_
         vectors.assert_not_called()
     assert original.read_text() == 'content'
     assert (await knowledge_repository.get_document('doc_busy', uid))['status'] == 'processing'
+
+
+@pytest.mark.asyncio
+async def test_vectorization_requires_explicit_owned_start_and_never_replays(database, tmp_path, monkeypatch):
+    from app.repositories import knowledge_repository as docs, user_repository as users
+    uid = (await users.create_user('manual-vectors'))['id']
+    monkeypatch.setattr(knowledge_service.get_settings(), 'kb_upload_dir', str(tmp_path))
+    with patch('app.services.knowledge_service.asyncio.create_task') as launch:
+        uploaded = await knowledge_service.handle_upload(uid, 'a.txt', b'local text')
+        assert (await knowledge_service.list_documents(uid)).items[0].status == 'uploaded'
+        assert (await knowledge_service.get_document_content(uid, uploaded.doc_id)).text.strip() == 'local text'
+        launch.assert_not_called()
+        with pytest.raises(KnowledgeBaseError):
+            await knowledge_service.start_vectorization(uid + 1, uploaded.doc_id)
+        launch.assert_not_called()
+        assert (await knowledge_service.start_vectorization(uid, uploaded.doc_id)).status == 'processing'
+        launch.assert_called_once()
+        launch.call_args[0][0].close()
+        await knowledge_service.start_vectorization(uid, uploaded.doc_id)
+        for status in ('ready', 'failed'):
+            await docs.update_document_status(uploaded.doc_id, status)
+            assert (await knowledge_service.start_vectorization(uid, uploaded.doc_id)).status == status
+        launch.assert_called_once()

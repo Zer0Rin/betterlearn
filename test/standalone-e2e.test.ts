@@ -38,8 +38,17 @@ test('real services independently run extraction, library, RAG quiz, report and 
   expect((await request(`/nobei/v1/learning-courses/${course.courseId}`)).result.courseId).toBe(course.courseId)
   const session=await request('/nobei/quiz/v1/session',undefined,'POST');expect(session.code).toBe(0)
   const form=new FormData();form.append('file',new Blob([sourceText],{type:'text/plain'}),'植物.txt')
+  const beforeUpload=fake.calls.length
   const uploaded=await (await fetch(app.url+'/nobei/quiz/v1/knowledge/documents',{method:'POST',headers:{origin:app.url},body:form})).json()
   expect(uploaded.code,JSON.stringify(uploaded)).toBe(0);const docId=uploaded.data.doc_id
+  expect(uploaded.data.status).toBe('uploaded')
+  await request(`/nobei/quiz/v1/knowledge/documents/${docId}`)
+  expect(fake.calls.length).toBe(beforeUpload)
+  await request('/api/settings',{embedding:{model:'fake-embedding-manual'}},'PUT')
+  const rawPreview=(await request('/nobei/v1/knowledge-base/preview',{docIds:[docId]})).result
+  expect(rawPreview.text).toContain(sourceText)
+  expect(fake.calls.length).toBe(beforeUpload)
+  await request(`/nobei/quiz/v1/knowledge/documents/${docId}/vectorize`, {})
   let doc:any;for(let i=0;i<250;i++){doc=(await request(`/nobei/quiz/v1/knowledge/documents/${docId}`)).data;if(doc.status!=='processing')break;await delay()}
   expect(doc.status,JSON.stringify(doc)).toBe('ready')
   const preview=(await request('/nobei/v1/knowledge-base/preview',{docIds:[docId]})).result;expect(preview.text).toContain(sourceText)

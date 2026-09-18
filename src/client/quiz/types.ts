@@ -124,7 +124,7 @@ export interface QuizDetailResponse {
 
 /* ---- 知识库类型定义 ---- */
 
-export type KnowledgeDocumentStatusEnum = 'processing' | 'ready' | 'failed'
+export type KnowledgeDocumentStatusEnum = 'uploaded' | 'processing' | 'ready' | 'failed'
 
 export interface KnowledgeUploadResponse {
   doc_id: string

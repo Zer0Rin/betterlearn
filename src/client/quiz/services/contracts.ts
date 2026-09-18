@@ -3,7 +3,7 @@ import type { SourceApi } from '../source-types.js'
 import type { ExamApi } from '../exam-types.js'
 import type { GoalApi } from '../goal-types.js'
 import type { BankCategory, BankEntry, BankHistoryItem, BankPage, BankQuery, BankStats } from '../bank-types.js'
-import type { AttemptAnswers, AttemptSummary, PracticeAttempt, AnswerRecord, KnowledgeDocumentContent, KnowledgeDocumentItem, KnowledgeUploadResponse, LoginResponse, QuizData, QuizDetailResponse, QuizHistoryList, QuizTaskStatus, ReportData, UserProfile } from '../types.js'
+import type { AttemptAnswers, AttemptSummary, PracticeAttempt, AnswerRecord, KnowledgeDocumentStatus, KnowledgeDocumentContent, KnowledgeDocumentItem, KnowledgeUploadResponse, LoginResponse, QuizData, QuizDetailResponse, QuizHistoryList, QuizTaskStatus, ReportData, UserProfile } from '../types.js'
 
 /** Host-provided sources keep identity and evidence metadata outside presentation components. */
 export type KnowledgeSource =
@@ -44,6 +44,7 @@ export interface QuizApi extends GoalApi, ExamApi, SourceApi, KnowledgeStatsApi 
   getDetail(id: string): Promise<QuizDetailResponse>
   getDocuments(signal?: AbortSignal): Promise<{ items: KnowledgeDocumentItem[] }>
   getDocumentContent(id: string, signal?: AbortSignal): Promise<KnowledgeDocumentContent>
+  vectorizeDocument(docId: string): Promise<KnowledgeDocumentStatus>
   uploadDocument(file: File): Promise<KnowledgeUploadResponse>
   deleteDocument(id: string): Promise<null>
 }

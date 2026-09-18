@@ -52,12 +52,12 @@ const terminalScheduler = {
   isVisible: () => true, async waitUntilVisible() {},
 }
 
-async function workspace(status?: RunSnapshot['status']) {
+async function workspace(status?: RunSnapshot['status'], api = apiFor(status)) {
   const storage = new MemoryStorage()
   if (status) writeSessionState(storage, 'session', { version: 1, runId: 'job_saved', lastEventSeq: 0 })
   let renderer!: ReactTestRenderer
   await act(async () => {
-    renderer = create(<NobeiWorkspace sessionId="session" api={apiFor(status)} storage={storage}
+    renderer = create(<NobeiWorkspace sessionId="session" api={api} storage={storage}
       scheduler={terminalScheduler} modelDirectories={modelDirectories} ordinarySession />)
     await Promise.resolve(); await Promise.resolve(); await Promise.resolve()
   })
@@ -300,3 +300,22 @@ describe('phase1d composed workspace', () => {
   })
 
 })
+
+
+test.each(['generating', 'failed_retryable', 'failed_terminal', 'review_pending', 'completed'] as const)(
+  'keeps a non-destructive return action above the material in %s', async status => {
+    const api = apiFor(status)
+    api.deleteRun = vi.fn()
+    const renderer = await workspace(status, api)
+    const navigation = renderer.root.findByProps({ 'data-testid': 'nobei-workspace-navigation' })
+    const back = navigation.findByType('button')
+    expect(back.props.disabled).toBeFalsy()
+    await act(async () => { back.props.onClick() })
+    expect(renderer.root.findByProps({ 'data-workspace-screen': 'import' })).toBeDefined()
+    expect(api.deleteRun).not.toHaveBeenCalled()
+    expect(api.retryRun).not.toHaveBeenCalled()
+    expect(api.importText).not.toHaveBeenCalled()
+    expect(renderer.root.findAllByProps({ 'data-testid': 'nobei-workspace-navigation' })).toHaveLength(0)
+    act(() => renderer.unmount())
+  },
+)

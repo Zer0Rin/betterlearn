@@ -31,7 +31,7 @@ async def test_v3_source_upgrade_backup_and_no_inference(api, database):
     old = await data(client, f"/entries/{entries[0]['id']}/history")
     assert old['items'][0]['source'] is None
     assert old['items'][0]['source_revision'] is None
-    backups = list(database.parent.glob('*.pre-v7-*.bak'))
+    backups = list(database.parent.glob('*.pre-v8-*.bak'))
     assert len(backups) == 1
     with sqlite3.connect(backups[0]) as con:
         assert con.execute('PRAGMA user_version').fetchone()[0] == 3
@@ -40,7 +40,7 @@ async def test_v3_source_upgrade_backup_and_no_inference(api, database):
         assert not con.execute("SELECT 1 FROM sqlite_master WHERE name='question_bank_sources'").fetchone()
     await db.close_db()
     await db.init_db()
-    assert len(list(database.parent.glob('*.pre-v7-*.bak'))) == 1
+    assert len(list(database.parent.glob('*.pre-v8-*.bak'))) == 1
 
 
 @pytest.mark.asyncio
@@ -56,7 +56,7 @@ async def test_source_migration_failure_keeps_v3(database, monkeypatch):
     with sqlite3.connect(database) as con:
         assert con.execute('PRAGMA user_version').fetchone()[0] == 3
         assert not con.execute("SELECT 1 FROM sqlite_master WHERE name='source_partial'").fetchone()
-    assert len(list(database.parent.glob('*.pre-v7-*.bak'))) == 1
+    assert len(list(database.parent.glob('*.pre-v8-*.bak'))) == 1
 
 
 from tests.test_quiz_attempts import api

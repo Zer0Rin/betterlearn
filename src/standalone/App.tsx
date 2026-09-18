@@ -1,9 +1,10 @@
 import { loadGoalCourses as readGoalCourses } from '../client/quiz/services/goal-courses.js'
+import { QuickNavigation } from './QuickNavigation.js'
 import { GlassBackdrop } from './GlassBackdrop.js'
 import { normalizeGlassFrost, readGlassFrost, writeGlassFrost, readComponentOpacity, writeComponentOpacity } from './glass-preference.js'
 import { WorkbenchWindow } from './WorkbenchWindow.js'
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { BookOpen, Bookmark, CalendarClock, Target, FileText, GraduationCap, History, Layers3, Settings2, ChartNoAxesCombined } from 'lucide-react'
+import { BookOpen, Bookmark, CalendarClock, Target, FileText, GraduationCap, History, Layers3, Settings2, ChartNoAxesCombined, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import { createClientApi } from '../client/client-api.js'
 import { NobeiWorkspace } from '../client/NobeiClientView.js'
 import { LearningBookComposer, LearningBookshelf, type LearningBookDraftResult } from '../client/components/LearningLibrary.js'
@@ -28,7 +29,7 @@ const navigation = [
   {area:'quiz',label:'题库',icon:Bookmark,route:'/bank'},
   {area:'quiz',label:'到期复习',icon:CalendarClock,route:'/reviews'},
   {area:'quiz',label:'知识点出题',icon:Target,route:'/source-practice'},
-  {area:'quiz',label:'学习目标',icon:Target,route:'/goals'},
+  {area:'quiz',label:'学习目标',icon:Target,route:'/goals',group:'学习计划'},
   {area:'quiz',label:'模拟考试',icon:GraduationCap,route:'/exams'},
   {area:'quiz',label:'学习统计',icon:ChartNoAxesCombined,route:'/profile'},
   {area:'settings',label:'设置',icon:Settings2,group:'偏好设置'},
@@ -55,6 +56,7 @@ export function StandaloneApp({api, fetcher = globalThis.fetch, storage = window
   const [area,setArea] = useState<Area>('library')
   const [quizRoute,setQuizRoute] = useState('/')
   const [historyOpen,setHistoryOpen] = useState(false)
+  const [sidebarCollapsed,setSidebarCollapsed] = useState(false)
   const [directory,setDirectory] = useState<ModelDirectorySnapshot>({current:null,routable:null,status:'loading'})
   const directoryRef = useRef(directory)
   const [modelError,setModelError] = useState('')
@@ -177,22 +179,24 @@ export function StandaloneApp({api, fetcher = globalThis.fetch, storage = window
   }
   const activeBook=books.find(book=>book.bookId===activeBookId)
   const title=area==='knowledge'?'知识提取':area==='settings'?'设置':area==='quiz'?'知识库与练习':area==='compose'?'整理学习书':'学习空间'
-  return <WorkbenchWindow storage={storage} title={title} frost={glassFrost} componentOpacity={componentOpacity}><div className="standalone-app">
+  return <WorkbenchWindow storage={storage} title={title} frost={glassFrost} componentOpacity={componentOpacity}><div className="standalone-app" data-sidebar-collapsed={sidebarCollapsed}>
     <a className="standalone-skip" href="#standalone-content">跳到内容</a>
     <aside className="standalone-sidebar">
       <GlassBackdrop frost={glassFrost} radius={0}/>
       <div className="standalone-sidebar-scroll">
-      <nav aria-label="主导航">{navigation.map(item=>{
-        const selected=area===item.area && (item.area!=='quiz'||quizRoute===item.route)
+      <div className="standalone-brand"><span className="standalone-brand-mark" aria-hidden="true"><BookOpen size={22} strokeWidth={1.7}/></span><div><strong>BetterLearn</strong><span>让知识成为自己的</span></div></div>
+      <nav aria-label="主导航">{navigation.filter(item=>item.area!=='settings').map(item=>{
+        const selected=(area===item.area || (item.area==='library' && (area==='learning'||area==='compose'))) && (item.area!=='quiz'||quizRoute===item.route)
         return <Fragment key={item.label}>{'group' in item && <p className="standalone-nav-group">{item.group}</p>}<button type="button" title={item.label} aria-label={item.label} aria-current={selected?'page':undefined} onClick={()=>{
           setArea(item.area);setHistoryOpen(false);if(item.area==='quiz')setQuizRoute(item.route)
         }}><item.icon size={17} strokeWidth={1.6}/><span>{item.label}</span>{item.area==='library'&&libraryReady&&<small>{books.length}</small>}</button></Fragment>
       })}</nav>
-      <div className="standalone-local"><span><i/>本地空间</span><small title={directory.current?.model}>{directory.current?.model ?? '模型未配置'}</small></div>
       </div>
+      <div className="workspace-sidebar-footer"><button type="button" aria-label="设置" aria-current={area==='settings'?'page':undefined} onClick={()=>setArea('settings')}><Settings2 size={17} aria-hidden="true"/><span>设置</span></button><div className="standalone-local"><span><i/>本地空间</span><small>{directory.current?.model ?? '模型未配置'}</small></div></div>
     </aside>
     <div className="standalone-main">
-      {directory.status!=='loading'&&!directory.current&&<div className="standalone-notice" role="status"><span>{modelError || '配置文本模型后，即可提取知识和生成练习。已有学习数据仍可浏览。'}</span><button type="button" onClick={()=>setArea('settings')}>配置文本模型</button></div>}
+      <header className="workspace-toolbar"><button type="button" className="workspace-sidebar-toggle" aria-label={sidebarCollapsed?'展开侧栏':'收起侧栏'} aria-expanded={!sidebarCollapsed} onClick={()=>setSidebarCollapsed(value=>!value)}>{sidebarCollapsed?<PanelLeftOpen size={18}/>:<PanelLeftClose size={18}/>}</button><span className="workspace-location">{title}</span><QuickNavigation actions={navigation.map(item=>({label:item.label,onSelect:()=>{setArea(item.area);setHistoryOpen(false);if(item.area==='quiz')setQuizRoute(item.route)}}))}/></header>
+      {directory.status!=='loading'&&!directory.current&&(area==='knowledge'||area==='quiz')&&<div className="standalone-notice" role="status"><span>{modelError || '配置文本模型后，即可提取知识和生成练习。已有学习数据仍可浏览。'}</span><button type="button" onClick={()=>setArea('settings')}>配置文本模型</button></div>}
       {saveError&&<div className="standalone-notice standalone-notice--error" role="alert">{saveError}{libraryConflict ? <button type="button" disabled={pendingSaves>0} onClick={()=>{
         if (!window.confirm('重新加载将放弃当前页面尚未保存的学习书修改，并读取本机最新版本。是否继续？')) return
         setLibraryReady(false);setDraft(undefined);setActiveBookId(undefined);setArea('library');setLoadRevision(n=>n+1)
@@ -210,8 +214,7 @@ export function StandaloneApp({api, fetcher = globalThis.fetch, storage = window
         {area==='learning'&&activeBook&&<LearningSpace book={activeBook} api={clientApi} leftOpen={layout.leftOpen} rightOpen={layout.rightOpen}
           onLeftOpenChange={open=>updateLayout('leftOpen',open)} onRightOpenChange={open=>updateLayout('rightOpen',open)} onCourseChange={updateCourse} onExit={()=>setArea('library')}/>}
         <div hidden={area!=='knowledge'} className="standalone-extraction">
-          <header className="standalone-page-heading"><h1>知识提取</h1><span>从资料中提取知识点，逐条核对原文证据。</span></header>
-          <div className="standalone-extraction-toolbar"><span>原文 · 证据 · 知识</span><button type="button" aria-expanded={historyOpen} onClick={()=>setHistoryOpen(!historyOpen)}>{historyOpen?'收起提取历史':'提取历史'}</button></div>
+          <header className="workspace-extraction-heading"><div><h1>知识提取</h1><p>导入材料，核对证据，整理为学习书。</p></div><button type="button" aria-expanded={historyOpen} onClick={()=>setHistoryOpen(!historyOpen)}><History size={16} aria-hidden="true"/>{historyOpen?'收起历史':'提取历史'}</button></header>
           <NobeiWorkspace standalone sessionId="standalone" api={clientApi} storage={storage} ordinarySession
             modelDirectoryState={directory} readModelDirectory={readModelDirectory} loadModelSelection={loadModelSelection} historyOpen={historyOpen}
             onOrganizeLearningBook={(points,sourceText)=>{if(points.length){setDraft({points:[...points],sourceText});setArea('compose')}}}/>

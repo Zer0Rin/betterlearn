@@ -120,3 +120,11 @@ it('reads paginated knowledge versions and history without mutations',async()=>{
   expect(Object.fromEntries(url.searchParams)).toEqual({...filter,page:'2',page_size:'20'});expect(call[1].method).toBe('GET');expect(call[1].body).toBeUndefined()
  }
 })
+
+it('starts vectorization only through the explicit POST endpoint', async () => {
+  const fetcher = vi.fn().mockResolvedValue(ok({ status: 'processing' }))
+  await createQuizApi({ fetch: fetcher }).vectorizeDocument('doc_1')
+  expect(fetcher).toHaveBeenCalledOnce()
+  expect(fetcher.mock.calls[0][0]).toBe('/nobei/quiz/v1/knowledge/documents/doc_1/vectorize')
+  expect(fetcher.mock.calls[0][1].method).toBe('POST')
+})

@@ -36,7 +36,7 @@ class TestKnowledgeUploadAPI:
 
     async def test_upload_success(self, auth_header):
         mock_result = KnowledgeUploadResponse(
-            doc_id="doc_abc123", file_name="a.txt", status="processing"
+            doc_id="doc_abc123", file_name="a.txt", status="uploaded"
         )
         with patch(
             "app.api.v1.routes.knowledge.knowledge_service.handle_upload",
@@ -53,7 +53,7 @@ class TestKnowledgeUploadAPI:
         body = resp.json()
         assert body["code"] == 0
         assert body["data"]["doc_id"] == "doc_abc123"
-        assert body["data"]["status"] == "processing"
+        assert body["data"]["status"] == "uploaded"
 
     async def test_upload_rejects_invalid_document(self, auth_header):
         with patch(
@@ -204,3 +204,15 @@ class TestKnowledgeDeleteAPI:
         async with AsyncClient(transport=transport, base_url="http://test") as client:
             resp = await client.delete("/api/v1/knowledge/documents/doc_1")
         assert resp.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_vectorize_route_requires_auth_and_explicit_post(auth_header):
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url='http://test') as client:
+        assert (await client.post('/api/v1/knowledge/documents/doc_1/vectorize')).status_code == 401
+        with patch('app.services.knowledge_service.start_vectorization', new_callable=AsyncMock) as start:
+            start.return_value = KnowledgeStatusResponse(doc_id='doc_1', file_name='a.txt', status='processing', chunk_count=0)
+            response = await client.post('/api/v1/knowledge/documents/doc_1/vectorize', headers=auth_header)
+            assert response.status_code == 200
+            start.assert_awaited_once_with(1, 'doc_1')

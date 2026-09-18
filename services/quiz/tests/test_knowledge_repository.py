@@ -9,7 +9,7 @@ async def test_document_lifecycle_and_ownership(database):
     assert await docs.count_documents(uid) == 0
     assert await docs.get_document('missing', uid) is None
     await docs.create_document('doc_1', uid, 'a.pdf', 'pdf', 1024)
-    assert (await docs.get_document('doc_1', uid))['status'] == 'processing'
+    assert (await docs.get_document('doc_1', uid))['status'] == 'uploaded'
     await docs.update_document_status('doc_1', 'ready', chunk_count=5)
     document = await docs.get_document('doc_1', uid)
     assert document['chunk_count'] == 5 and document['status'] == 'ready'

@@ -43,3 +43,9 @@ async def get_document_content(doc_id: str, user_id: int = Depends(get_current_u
 async def delete_document(doc_id: str, user_id: int = Depends(get_current_user)):
     await knowledge_service.delete_document(user_id, doc_id)
     return ApiResponse.success()
+
+
+@router.post("/documents/{doc_id}/vectorize", response_model=ApiResponse)
+async def start_vectorization(doc_id: str, user_id: int = Depends(get_current_user)):
+    result = await knowledge_service.start_vectorization(user_id, doc_id)
+    return ApiResponse.success(data=result.model_dump())

@@ -35,11 +35,11 @@ async def test_exam_upgrade_backup_and_atomic_rollback(database, tmp_path, monke
     else:
         await db.init_db()
     with sqlite3.connect(path) as conn:
-        assert conn.execute('PRAGMA user_version').fetchone()[0] == (version if failure else 7)
+        assert conn.execute('PRAGMA user_version').fetchone()[0] == (version if failure else 8)
         assert conn.execute('SELECT total_xp FROM users').fetchone()[0] == 77
         assert bool(conn.execute("SELECT 1 FROM sqlite_master WHERE name='exam_papers'").fetchone()) is not failure
         assert bool(conn.execute("SELECT 1 FROM sqlite_master WHERE name='exam_sessions'").fetchone()) is not failure
-    backups = list(tmp_path.glob('old.sqlite.pre-v7-*.bak'))
+    backups = list(tmp_path.glob('old.sqlite.pre-v8-*.bak'))
     assert len(backups) == 1
     with sqlite3.connect(backups[0]) as conn:
         assert conn.execute('PRAGMA integrity_check').fetchone()[0] == 'ok'
@@ -48,4 +48,4 @@ async def test_exam_upgrade_backup_and_atomic_rollback(database, tmp_path, monke
     if not failure:
         await db.close_db()
         await db.init_db()
-        assert len(list(tmp_path.glob('old.sqlite.pre-v7-*.bak'))) == 1
+        assert len(list(tmp_path.glob('old.sqlite.pre-v8-*.bak'))) == 1

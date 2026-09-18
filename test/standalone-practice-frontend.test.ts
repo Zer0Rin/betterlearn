@@ -30,6 +30,12 @@ test('browser adapter and controller persist drafts across host restart, grade w
   expect(p.state.error).toBe('');const first=quiz.questions[0]
   await p.answer({question_id:first.id,selected_answers:first.answer,duration_ms:100})
   expect(p.state.error).toBe('');const id=p.state.attempt!.attempt_id
+  const beforeLegacy=await api.getBankStats()
+  const legacyResponse=await fetch(app.url+'/nobei/quiz/v1/report/generate',{method:'POST',headers:{origin:app.url,'content-type':'application/json'},body:JSON.stringify({
+   quiz_id:quiz.quiz_id,topic:quiz.title,questions:quiz.questions,answer_records:quiz.questions.map(q=>({question_id:q.id,selected_answers:q.answer,is_correct:true,duration_ms:100}))})})
+  expect(legacyResponse.status).toBe(409)
+  expect(await api.getBankStats()).toEqual(beforeLegacy)
+  expect((await api.listAttempts(quiz.quiz_id)).items).toHaveLength(1)
   const calls=fake.calls.length
   await app.close();app=await startStandalone(options);api=makeApi();await api.connect()
   const reopened=new PracticeController(api,storage,quiz.quiz_id);await reopened.load()

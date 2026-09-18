@@ -36,6 +36,8 @@ async def test_processing_document_counts_as_active_work(database):
     uid = (await user_repository.create_user('document-work'))['id']
     assert not await task_repository.has_active_tasks()
     await knowledge_repository.create_document('doc', uid, 'x.txt', 'txt', 1)
+    assert not await task_repository.has_active_tasks()
+    await knowledge_repository.claim_vectorization('doc', uid)
     assert await task_repository.has_active_tasks()
     await knowledge_repository.update_document_status('doc', 'ready', 1)
     assert not await task_repository.has_active_tasks()

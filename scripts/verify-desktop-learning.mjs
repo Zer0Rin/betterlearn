@@ -69,7 +69,7 @@ export async function verifyDesktopLearning(page, sourceText) {
   await page.getByRole('button',{name:'确认开考',exact:true}).click()
   await page.getByRole('group',{name:'第 1 题选项',exact:true}).getByRole('button',{name:'A 化学能',exact:true}).click()
   await page.getByRole('button',{name:'保存考试草稿',exact:true}).click()
-  await page.getByText(/已保存 1 \/ 3 道/).waitFor()
+  await page.getByText(/服务端草稿已作答 1 \/ 3 道/).waitFor()
   const exam=(await request(page,'/nobei/quiz/v1/exam-sessions')).data.items[0]
   const saved=(await request(page,`/nobei/quiz/v1/exam-sessions/${exam.session_id}`)).data
   assert.equal(saved.answer_records.length,1)
@@ -90,7 +90,7 @@ export async function verifyDesktopLearningRestart(page, saved) {
   await page.getByRole('button',{name:'模拟考试',exact:true}).click()
   await page.getByRole('button',{name:'考试记录',exact:true}).click()
   await page.getByRole('button',{name:'继续考试或结算',exact:true}).click()
-  await page.getByText(/已保存 1 \/ 3 道/).waitFor()
+  await page.getByText(/服务端草稿已作答 1 \/ 3 道/).waitFor()
   assert.equal(await page.getByRole('group',{name:'第 1 题选项',exact:true}).getByRole('button',{name:'A 化学能',exact:true}).getAttribute('aria-pressed'),'true')
   const before=(await request(page,`/nobei/quiz/v1/exam-sessions/${saved.sessionId}`)).data
   assert.equal(before.deadline_at,saved.deadline)
@@ -107,6 +107,6 @@ export async function verifyDesktopLearningRestart(page, saved) {
   await page.getByRole('button',{name:'学习统计',exact:true}).click()
   await page.getByRole('button',{name:'查看此版本作答',exact:true}).click()
   await page.getByRole('button',{name:'查看这次成绩',exact:true}).first().waitFor()
-  assert.equal(await page.getByRole('button',{name:'查看这次成绩',exact:true}).count(),3)
+  assert.equal(await page.getByRole('button',{name:'查看这次成绩',exact:true}).count(),1)
   await page.screenshot({path:'dist/desktop-verification/knowledge-history.png'})
 }

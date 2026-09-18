@@ -1,8 +1,10 @@
 export const goalTimeZone=()=>Intl.DateTimeFormat().resolvedOptions().timeZone || '本地时区'
-export function goalTime(value:string){
+export function goalTime(value:string|null|undefined){
+  if(!value)return '时间未知'
   // Legacy SQLite answer timestamps are UTC even without an explicit suffix.
   const utc=/([zZ]|[+-]\d{2}:\d{2})$/.test(value)?value:value.replace(' ','T')+'Z'
-  return new Date(utc).toLocaleString('zh-CN',{hour12:false})
+  const date=new Date(utc)
+  return Number.isFinite(date.getTime())?date.toLocaleString('zh-CN',{hour12:false}):'时间未知'
 }
 export function goalDeadline(value:string):string {
   if(!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value))throw Error('请选择完整的截止日期与时间。')

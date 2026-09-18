@@ -21,7 +21,7 @@ async def create_document(
     with transaction() as cur:
         cur.execute(
             "INSERT INTO kb_documents (doc_id, user_id, file_name, file_type, file_size, status) "
-            "VALUES (?, ?, ?, ?, ?, 'processing')",
+            "VALUES (?, ?, ?, ?, ?, 'uploaded')",
             (doc_id, user_id, file_name, file_type, file_size),
         )
 
@@ -104,3 +104,11 @@ async def delete_document(doc_id: str, user_id: int) -> None:
             "DELETE FROM kb_documents WHERE doc_id = ? AND user_id = ?",
             (doc_id, user_id),
         )
+
+
+async def claim_vectorization(doc_id: str, user_id: int) -> bool:
+    """Only a never-started document can launch a paid job, even on request replay."""
+    with transaction() as cur:
+        cur.execute("UPDATE kb_documents SET status='processing', error_message=NULL "
+                    "WHERE doc_id=? AND user_id=? AND status='uploaded'", (doc_id, user_id))
+        return cur.rowcount == 1

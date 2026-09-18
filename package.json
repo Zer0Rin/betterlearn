@@ -4,11 +4,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Zer0Rin/betterlearn-for-dsh.git"
+    "url": "git+https://github.com/Zer0Rin/bl.git"
   },
-  "homepage": "https://github.com/Zer0Rin/betterlearn-for-dsh#readme",
+  "homepage": "https://github.com/Zer0Rin/bl#readme",
   "bugs": {
-    "url": "https://github.com/Zer0Rin/betterlearn-for-dsh/issues"
+    "url": "https://github.com/Zer0Rin/bl/issues"
   },
   "type": "module",
   "engines": {

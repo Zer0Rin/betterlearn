@@ -161,6 +161,9 @@ async def submit_legacy(quiz_id: str, user_id: int, answers: list) -> dict:
                           (quiz_id, user_id)).fetchone()
         if row and row['status'] == 'submitted':
             return _read(cur, row)
+        if cur.execute('SELECT 1 FROM quiz_attempts WHERE quiz_id=? AND user_id=? AND legacy_source=0 LIMIT 1',
+                       (quiz_id, user_id)).fetchone():
+            raise AttemptError('题卷已有作答轮次，请使用对应轮次交卷和生成报告')
         row = row or _create(cur, quiz, user_id, legacy=True)
         return _submit(cur, row, user_id, row['revision'], answers)
 

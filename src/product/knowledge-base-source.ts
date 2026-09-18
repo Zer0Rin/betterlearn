@@ -86,8 +86,8 @@ function joinDocuments(parts: readonly string[]): string {
   return parts.join('\n\n')
 }
 
-function isReady(status: unknown): status is 'ready' {
-  return status === 'ready'
+function isReady(status: unknown): status is 'ready' | 'uploaded' {
+  return status === 'ready' || status === 'uploaded'
 }
 
 export class KnowledgeBaseSource {
@@ -144,7 +144,7 @@ export class KnowledgeBaseSource {
           fileName,
           fileType: String(item.file_type ?? ''),
           fileSize: typeof item.file_size === 'number' ? item.file_size : 0,
-          status: item.status === 'ready' || item.status === 'failed' || item.status === 'processing'
+          status: item.status === 'uploaded' || item.status === 'ready' || item.status === 'failed' || item.status === 'processing'
             ? item.status
             : 'failed',
           chunkCount: typeof item.chunk_count === 'number' ? item.chunk_count : 0,

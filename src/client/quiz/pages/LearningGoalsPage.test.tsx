@@ -31,7 +31,7 @@ it('does not label a high score as achieved when the server says the count is in
  act(()=>{v=create(<GoalProgressPanel goal={{...goal,progress:{...goal.progress,evidence_score:1,distinct_question_count:3,remaining_distinct_questions:2}}} busy={false} onArchive={()=>{}}/>)})
  expect(JSON.stringify(v.toJSON())).toContain('尚未达标');expect(JSON.stringify(v.toJSON())).toContain('100%');act(()=>v.unmount())
  act(()=>{v=create(<GoalProgressPanel goal={{...goal,progress:{...goal.progress,evidence_score:0,deadline_passed:true}}} busy={false} onArchive={()=>{}}/>)})
- expect(JSON.stringify(v.toJSON())).toContain('已截止，未达标');expect(JSON.stringify(v.toJSON())).toContain('0%');act(()=>v.unmount())
+ expect(JSON.stringify(v.toJSON())).toContain('稍后结算');expect(JSON.stringify(v.toJSON())).toContain('已截止，未达标');expect(JSON.stringify(v.toJSON())).toContain('0%');act(()=>v.unmount())
 })
 it('resets pagination when filtering and ignores late list responses',async()=>{
  const api=fixture();api.listGoals.mockResolvedValue({...await api.listGoals(),total:21});let v!:ReactTestRenderer

@@ -31,7 +31,7 @@ def _get_extension(filename: str) -> str:
 
 
 async def handle_upload(user_id: int, filename: str, content: bytes) -> KnowledgeUploadResponse:
-    """校验并保存上传的文档，后台异步解析处理"""
+    """仅校验并保存上传的文档，不调用模型"""
     settings = get_settings()
 
     file_type = _get_extension(filename)
@@ -65,9 +65,17 @@ async def handle_upload(user_id: int, filename: str, content: bytes) -> Knowledg
         file_size=len(content),
     )
 
-    asyncio.create_task(_process_document(doc_id, user_id, file_path, file_type))
+    return KnowledgeUploadResponse(doc_id=doc_id, file_name=filename, status="uploaded")
 
-    return KnowledgeUploadResponse(doc_id=doc_id, file_name=filename, status="processing")
+
+async def start_vectorization(user_id: int, doc_id: str) -> KnowledgeStatusResponse:
+    row = await knowledge_repository.get_document(doc_id, user_id)
+    if row is None:
+        raise KnowledgeDocumentNotFound("文档不存在")
+    if await knowledge_repository.claim_vectorization(doc_id, user_id):
+        path = os.path.join(get_settings().kb_upload_dir, f"{doc_id}.{row['file_type']}")
+        asyncio.create_task(_process_document(doc_id, user_id, path, row['file_type']))
+    return await get_document_status(user_id, doc_id)
 
 
 async def _process_document(doc_id: str, user_id: int, file_path: str, file_type: str) -> None:
@@ -91,7 +99,7 @@ async def _process_document(doc_id: str, user_id: int, file_path: str, file_type
         logger.error("kb_document_processing_failed", doc_id=doc_id, user_id=user_id, error_type=type(e).__name__)
         message = str(e) if isinstance(e, KnowledgeBaseError) else "文档处理失败，请检查文档格式、向量模型配置和本地存储后重试"
         if getattr(e, "status_code", None) == 401:
-            message = "向量模型授权失败（401）。请检查 quiz.env 中的 DASHSCOPE_API_KEY 与 DASHSCOPE_BASE_URL，重启 BetterLearn后重新上传文档。"
+            message = "向量模型授权失败（401）。请检查 quiz.env 中的 DASHSCOPE_API_KEY 与 DASHSCOPE_BASE_URL，检查设置后重新上传，并手动开始向量化。"
         await knowledge_repository.update_document_status(
             doc_id, "failed", error_message=message
         )
@@ -166,7 +174,8 @@ async def delete_document(user_id: int, doc_id: str) -> None:
     settings = get_settings()
 
     try:
-        await asyncio.to_thread(vector_store_service.delete_document_vectors, user_id, doc_id)
+        if row["status"] != "uploaded":
+            await asyncio.to_thread(vector_store_service.delete_document_vectors, user_id, doc_id)
     except Exception as e:
         logger.warning("kb_document_vector_delete_failed", doc_id=doc_id, error_type=type(e).__name__)
         raise KnowledgeBaseError("文档向量删除失败，请重试删除") from None

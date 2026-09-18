@@ -68,7 +68,7 @@ export function RunProgress({
       <header>
         <p className="nobei-client__eyebrow">提取进度</p>
         <h2 id="nobei-progress-title">{run?.document.filename ?? '正在读取材料'}</h2>
-        {run && <p>本次模型：{modelSelectionLabel(run.modelSelection)}</p>}
+        {run && <p>文本模型：{modelSelectionLabel(run.modelSelection)}</p>}
         {longDocument && <p>长文先规划，再分批提取；全部完成后自动进入审核。重新连接不会重新调用模型。</p>}
       </header>
       <ol className="nobei-client__steps">

@@ -104,6 +104,7 @@ export function createQuizApi({ baseUrl = '/nobei/quiz/v1', fetch: fetcher = glo
     getDetail: id => send(`/user/quizzes/${encodeURIComponent(id)}`),
     getDocuments: signal => send('/knowledge/documents', 'GET', undefined, 30000, signal),
     getDocumentContent: (id, signal) => send(`/knowledge/documents/${encodeURIComponent(id)}/content`, 'GET', undefined, 120000, signal),
+    vectorizeDocument: docId => send(`/knowledge/documents/${encodeURIComponent(docId)}/vectorize`, 'POST', {}),
     uploadDocument: file => { const form = new FormData(); form.append('file', file); return send('/knowledge/documents', 'POST', form) },
     deleteDocument: id => send(`/knowledge/documents/${encodeURIComponent(id)}`, 'DELETE'),
   }

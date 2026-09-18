@@ -1,4 +1,4 @@
-/* Neutral working surfaces; #1769FF actions, deep blue anchors, pale blue selection. */
+/* Neutral working surfaces, cobalt actions, deep blue book covers and pale blue selection. */
 :root {
   --neutral-0: #ffffff;
   --neutral-50: #f7f8fa;
@@ -9,7 +9,7 @@
   --neutral-900: #171c26;
   --blue-50: #edf3ff;
   --blue-300: #adc7ff;
-  --blue-500: #1769ff;
+  --blue-500: #175de0;
   --blue-600: #1056dc;
   --blue-700: #124bbf;
   --blue-900: #002fa7;
@@ -43,6 +43,8 @@
   --color-warning-text: var(--neutral-600);
   --color-warning-bg: var(--neutral-50);
   --color-warning-border: var(--neutral-200);
+  --font-display: "Avenir Next", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --shadow-panel: 0 2px 4px #17203304, 0 10px 28px #17203308;
   --font-ui:
     -apple-system,
     BlinkMacSystemFont,
@@ -54,8 +56,8 @@
   --text-body: 14px;
   --text-section: 16px;
   --text-title: 24px;
-  --radius-control: 6px;
-  --radius-panel: 10px;
+  --radius-control: 8px;
+  --radius-panel: 14px;
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;

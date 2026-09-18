@@ -23,6 +23,8 @@ test('opens a standalone workspace and excludes DSH import sources', async () =>
 })
 test('offers settings when no model is configured while keeping navigation available', async () => {
   await act(async () => { root = create(<StandaloneApp storage={storage} fetcher={fetcher(null)}/>) })
+  expect(button('配置文本模型')).toBeUndefined()
+  await act(async () => button('知识提取').props.onClick())
   await act(async () => button('配置文本模型').props.onClick())
   expect(root.root.findByProps({'aria-label':'模型与能力设置'})).toBeTruthy()
   act(() => button('学习空间').props.onClick())
@@ -107,7 +109,7 @@ test('refreshes the model snapshot after saving settings without starting extrac
     return response(settings)
   })
   await act(async()=>{root=create(<StandaloneApp storage={storage} fetcher={request as typeof fetch}/>)})
-  await act(async()=>button('配置文本模型').props.onClick())
+  await act(async()=>button('设置').props.onClick())
   await act(async()=>root.root.findByType('form').props.onSubmit({preventDefault(){}}))
   expect(root.root.findAllByType('button').find(b=>b.children.join('')==='配置文本模型')).toBeUndefined()
   expect(JSON.stringify(root.toJSON())).toContain('next')

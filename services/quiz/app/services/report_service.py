@@ -58,8 +58,8 @@ async def handle_report_generate(req: ReportGenerateRequest, user_id: Optional[i
         return ReportGenerateResponse(**output)
     except ReportGenerationError:
         raise
-    except AttemptError as exc:
-        raise ReportGenerationError(str(exc)) from None
+    except AttemptError:
+        raise
     except QuizGenerationError as exc:
         raise ReportGenerationError(str(exc)) from None
     except Exception as exc:

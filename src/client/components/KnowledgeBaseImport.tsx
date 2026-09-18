@@ -210,11 +210,11 @@ export function KnowledgeBaseImport({
                   className="nobei-client__conversation-row" data-testid="knowledge-base-row">
                   <input type="checkbox" data-doc-id={document.docId}
                     checked={state.selected.includes(document.docId)}
-                    disabled={submitting || state.step === 'previewing' || document.status !== 'ready'}
+                    disabled={submitting || state.step === 'previewing' || !['ready', 'uploaded'].includes(document.status)}
                     onChange={event => toggle(document.docId, event.currentTarget.checked)} />
                   <span><strong>{document.fileName}</strong>
                     <time>{`${document.fileType.toUpperCase()} · ${formatBytes(document.fileSize)} · ${
-                      document.status === 'ready' ? '可提取'
+                      ['ready', 'uploaded'].includes(document.status) ? '可提取'
                         : document.status === 'processing' ? '解析中' : '解析失败'}`}</time></span>
                 </label>)}
         </div>

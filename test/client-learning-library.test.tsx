@@ -193,3 +193,31 @@ describe('BetterLearn primary entrances and learning bookshelf', () => {
     expect(JSON.stringify(renderer.toJSON())).toContain('保存为新版本')
   })
 })
+
+
+describe('desktop bookshelf discovery', () => {
+  const makeBook = (bookId: string, title: string) => createLearningBook({title, points:[point], sourceText:'正文'}, {bookId, createdAt:'2026-09-18T10:00:00.000Z'})
+  test('combines title search with progress filters and offers recovery for no results', () => {
+    const books = [makeBook('new','闭包入门'), {...makeBook('active','闭包进阶'),courseId:'course-active',progress:{completed:0,total:2,mastery:0}}, {...makeBook('done','词法作用域'),progress:{completed:2,total:2,mastery:80}}]
+    const renderer = create(<LearningBookshelf presentation="desktop" books={books} onOpenBook={vi.fn()} onEditBook={vi.fn()} onDeleteBook={vi.fn()} onOpenKnowledge={vi.fn()}/> )
+    const filter = renderer.root.findByProps({'aria-label':'按学习状态筛选'})
+    act(() => filter.findAllByType('button')[1].props.onClick())
+    expect(renderer.root.findAllByProps({'data-testid':'learning-book-active'})).toHaveLength(1)
+    expect(renderer.root.findAllByProps({'data-testid':'learning-book-new'})).toHaveLength(0)
+    act(() => renderer.root.findByType('input').props.onChange({currentTarget:{value:'作用域'}}))
+    expect(JSON.stringify(renderer.toJSON())).toContain('没有找到符合条件的学习书')
+    const reset = renderer.root.findAllByType('button').find(button => button.children.includes('清除筛选'))!
+    act(() => reset.props.onClick())
+    expect(renderer.root.findAllByProps({'className':'betterlearn-library__book'})).toHaveLength(3)
+    expect(renderer.root.findByType('input').props.value).toBe('')
+  })
+  test('continues an unfinished course and hides the shortcut while managing', () => {
+    const active = {...makeBook('active','正在学习'),courseId:'course-active',progress:{completed:0,total:2,mastery:0}}
+    const onOpenBook = vi.fn()
+    const renderer = create(<LearningBookshelf presentation="desktop" books={[active]} onOpenBook={onOpenBook} onEditBook={vi.fn()} onDeleteBook={vi.fn()} onOpenKnowledge={vi.fn()}/> )
+    act(() => renderer.root.findByProps({'aria-label':'继续学习'}).findByType('button').props.onClick())
+    expect(onOpenBook).toHaveBeenCalledWith(active)
+    act(() => renderer.root.findByProps({'data-testid':'learning-library-manage'}).props.onClick())
+    expect(renderer.root.findAllByProps({'aria-label':'继续学习'})).toHaveLength(0)
+  })
+})

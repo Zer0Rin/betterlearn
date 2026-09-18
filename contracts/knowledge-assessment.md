@@ -70,7 +70,7 @@ unseen; exact distinct content does not prove semantic independence. No difficul
 knowledge-type or time-decay adjustment is performed. There is no mastered flag
 or Core mastery/schedule write, model call, XP change or new task.
 
-Assessment itself adds no migration; current Quiz schema6/Core schema2. Learning goals reuse its cursor-based aggregation with a deadline cutoff, while this API continues to read all history. Matching history is
+Assessment itself adds no migration; current Quiz schema7/Core schema2. Learning goals reuse its cursor-based aggregation with a deadline cutoff, while this API continues to read all history. Matching history is
 scanned once under the existing serialized transaction. Response basis is bounded
 but query cost grows with matching history. The readonly betterlearn_knowledge_assessment MCP tool exposes the same result
 with required point/version and no pagination; MCP now has17 tools. Frontend remains paused.
@@ -79,3 +79,8 @@ Tests: services/quiz/tests/test_knowledge_assessment.py (pure policy and real ow
 SQLite API), test/quiz-routes.test.ts (public boundary), test/standalone-mcp.test.ts
 (real Host→Quiz query after fake-provider source generation/submission and restart).
 Attribution and Apache-2.0 license: services/quiz/third_party/DeepTutor/.
+
+Learning evidence excludes empty selected-answer arrays (both omitted exam answers
+and explicitly cleared answers), including existing historical projections.
+Exam grades and question-bank wrong-answer history still include unanswered items
+as incorrect. This read filter requires no migration or score rewrite.

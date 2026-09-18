@@ -8,7 +8,7 @@ class KnowledgeUploadResponse(BaseModel):
     """上传文档后的响应"""
     doc_id: str
     file_name: str
-    status: Literal["processing", "ready", "failed"]
+    status: Literal["uploaded", "processing", "ready", "failed"]
 
 
 class KnowledgeDocumentItem(BaseModel):
@@ -17,7 +17,7 @@ class KnowledgeDocumentItem(BaseModel):
     file_name: str
     file_type: str
     file_size: int
-    status: Literal["processing", "ready", "failed"]
+    status: Literal["uploaded", "processing", "ready", "failed"]
     chunk_count: int
     error_message: Optional[str] = None
     created_at: str
@@ -32,7 +32,7 @@ class KnowledgeStatusResponse(BaseModel):
     """文档状态查询响应"""
     doc_id: str
     file_name: str
-    status: Literal["processing", "ready", "failed"]
+    status: Literal["uploaded", "processing", "ready", "failed"]
     chunk_count: int
     error_message: Optional[str] = None
 

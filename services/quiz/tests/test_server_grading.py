@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from app.core.exceptions import ReportGenerationError
+from app.core.exceptions import AttemptError
 from app.models.report import ReportGenerateRequest, ReportOutput
 from app.repositories import quiz_repository as quizzes, user_repository as users
 from app.services import report_service
@@ -69,7 +69,7 @@ async def test_invalid_submission_never_calls_model_or_writes(database, sample_r
         records[0]['selected_answers'] = ['A', 'A']
     else:
         records[0]['selected_answers'] = ['A', 'B']
-    with pytest.raises(ReportGenerationError):
+    with pytest.raises(AttemptError):
         await report_service.handle_report_generate(ReportGenerateRequest(**body), uid)
     reporter.assert_not_awaited()
     assert 'answer_records' not in await quizzes.get_quiz_detail(body['quiz_id'], uid)
@@ -80,6 +80,6 @@ async def test_invalid_submission_never_calls_model_or_writes(database, sample_r
 async def test_wrong_owner_cannot_grade(database, sample_report_request, reporter):
     await seed(sample_report_request)
     outsider = (await users.create_user('outsider'))['id']
-    with pytest.raises(ReportGenerationError):
+    with pytest.raises(AttemptError):
         await report_service.handle_report_generate(ReportGenerateRequest(**sample_report_request), outsider)
     reporter.assert_not_awaited()

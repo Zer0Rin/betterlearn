@@ -20,7 +20,7 @@ async def test_user_document_and_schema(database):
     assert await docs.get_document('doc', user['id'] + 1) is None
     assert len(await docs.list_documents(user['id'])) == 1
     with sqlite3.connect(database) as conn:
-        assert conn.execute('PRAGMA user_version').fetchone()[0] == 7
+        assert conn.execute('PRAGMA user_version').fetchone()[0] == 8
 
 
 @pytest.mark.asyncio
@@ -35,6 +35,8 @@ async def test_foreign_key_failure_rolls_back(database):
 async def test_restart_recovers_only_interrupted_work(database):
     uid = (await users.create_user('local:restart'))['id']
     await docs.create_document('pending', uid, 'x', 'txt', 1)
+    await docs.claim_vectorization('pending', uid)
+    await docs.create_document('uploaded', uid, 'x', 'txt', 1)
     await docs.create_document('ready', uid, 'x', 'txt', 1)
     await docs.update_document_status('ready', 'ready', 2)
     for name in ['pending', 'running', 'completed']:
@@ -43,6 +45,7 @@ async def test_restart_recovers_only_interrupted_work(database):
     await db.close_db()
     await db.init_db()
     assert (await docs.get_document('pending', uid))['status'] == 'failed'
+    assert (await docs.get_document('uploaded', uid))['status'] == 'uploaded'
     assert (await docs.get_document('ready', uid))['status'] == 'ready'
     for name in ['pending', 'running']:
         assert (await tasks.get_task(name))['status'] == 'failed'

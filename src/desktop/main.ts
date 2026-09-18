@@ -132,6 +132,9 @@ else {
       { label: '窗口', submenu: [{ role: 'minimize' }, { role: 'zoom' }, { role: 'close' }] },
     ]))
     window = new BrowserWindow({ title: 'BetterLearn', width: 1280, height: 860, minWidth: 800, minHeight: 600,
+      // Chromium must also use a transparent compositor when AppKit clears the window.
+      // A clear backgroundColor alone leaves old page pixels in the native surface.
+      transparent: process.platform === 'darwin',
       backgroundColor: process.platform === 'darwin' ? '#00000000' : '#edf3fa', show: false,
       ...(process.platform === 'darwin' ? { titleBarStyle: 'hiddenInset' as const } : {}),
       webPreferences: { preload: join(moduleDirectory, 'preload.cjs'), nodeIntegration: false, contextIsolation: true, sandbox: true, webSecurity: true },

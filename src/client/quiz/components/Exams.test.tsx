@@ -58,3 +58,16 @@ it('uses server status to decide expiry even when the local clock is ahead',()=>
  act(()=>{v=create(<ExamAttempt session={{...exam,deadline_at:'2000-01-01T00:00:00Z'}} storage={goalStorage()} busy={false} onSave={()=>{}} onSubmit={()=>{}} onReport={()=>{}}/>)})
  expect(JSON.stringify(v.toJSON())).toContain('等待服务端核对');expect(button(v,'保存考试草稿').props.disabled).toBe(false);act(()=>v.unmount())
 })
+it('compares saved answer facts independently of record and multi-select order',()=>{
+ let v!:ReactTestRenderer
+ const questions=[exam.questions[0],{...exam.questions[0],id:'q2'}]
+ const answer_records=questions.map(q=>({question_id:q.id,selected_answers:['A','B'],duration_ms:100}))
+ act(()=>{v=create(<ExamAttempt session={{...exam,questions,answer_records}} storage={goalStorage()} busy={false} onSave={()=>{}} onSubmit={()=>{}} onReport={()=>{}}/>)})
+ const status=()=>v.root.findByProps({role:'status'}).children.join('')
+ const first=()=>v.root.findByProps({'aria-label':'第 1 题选项'}).findAllByType('button')[0]
+ try {
+  expect(status()).toContain('与服务端草稿一致')
+  act(()=>first().props.onClick());expect(status()).toContain('有本地修改')
+  act(()=>first().props.onClick());expect(status()).toContain('与服务端草稿一致')
+ } finally {act(()=>v.unmount())}
+})

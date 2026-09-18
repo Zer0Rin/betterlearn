@@ -208,3 +208,28 @@ async def test_exact_queries_and_archive_fields(api, monkeypatch):
                  {'expected_revision': -1, 'archived': True}, {'expected_revision': 0, 'archived': True, 'title': 'edit'}]:
         assert (await client.put(path + '/archive', json=body)).status_code == 422
     assert (await client.delete(path)).status_code == 405
+
+
+async def test_delayed_timeout_counts_by_recorded_submission_time(api, monkeypatch):
+    from datetime import timedelta
+    from tests.test_exams import setup_paper, paper, approve, start, ok, answers, S, exam_source
+    from app.repositories import exam_repository as exams, learning_goal_repository as goals
+    client, _, _ = api
+    now = datetime(2030, 1, 1, tzinfo=timezone.utc)
+    monkeypatch.setattr(exams, 'utc_now', lambda: now)
+    monkeypatch.setattr(goals, 'utc_now', lambda: now)
+    value = await paper(client, await setup_paper(client, monkeypatch))
+    value = await ok(await approve(client, value))
+    session = await ok(await start(client, value))
+    goal = await create_goal(client, payload(source=exam_source('1'),
+        due_at=(now + timedelta(seconds=120)).isoformat(), target_percent=10, min_distinct_questions=3))
+    path = S + '/' + session['session_id']
+    await ok(await client.put(path + '/answers', json={'expected_revision': 0, 'answer_records': answers(value)}))
+    now += timedelta(seconds=130)
+    before = (await detail(client, goal))['progress']
+    assert before['deadline_passed'] and not before['criteria_met']
+    result = (await ok(await client.post(path + '/submit', json={'expected_revision': 1, 'answer_records': []})))['result']
+    assert result['submitted_at'] == session['deadline_at']
+    assert result['finalized_at'] > goal['due_at']
+    after = (await detail(client, goal))['progress']
+    assert after['criteria_met'] and after['distinct_question_count'] == 3

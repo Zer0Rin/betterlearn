@@ -20,12 +20,13 @@ from app.core.source_generation_schema import migrate as migrate_source_generati
 
 from app.core.learning_goal_schema import migrate as migrate_goals
 from app.core.exam_schema import migrate as migrate_exams
+from app.core.knowledge_schema import migrate as migrate_knowledge
 
 from app.core.config import get_settings
 
 _connection: sqlite3.Connection | None = None
 _lock = threading.RLock()
-SCHEMA_VERSION = 7
+SCHEMA_VERSION = 8
 
 SCHEMA_STATEMENTS = [
     """CREATE TABLE users (
@@ -135,7 +136,9 @@ async def init_db() -> None:
                 migrate_goals(connection)
             if version < 7:
                 migrate_exams(connection)
-                connection.execute(f'PRAGMA user_version = {SCHEMA_VERSION}')
+            if version < 8:
+                migrate_knowledge(connection, SCHEMA_STATEMENTS)
+            connection.execute(f'PRAGMA user_version = {SCHEMA_VERSION}')
             reason = '服务重启中断了处理，请重试'
             connection.execute("UPDATE kb_documents SET status='failed', error_message=? WHERE status='processing'", (reason,))
             connection.execute("UPDATE quiz_tasks SET status='failed', error_message=? WHERE status IN ('pending','running')", (reason,))

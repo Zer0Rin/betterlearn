@@ -356,3 +356,12 @@ describe('knowledge base source reading', () => {
     await expect(settled).rejects.toBe(abortError)
   })
 })
+
+test('uploaded documents support text extraction without vectorization', async () => {
+  const { source, calls } = createSource({
+    '/api/v1/knowledge/documents': () => envelope({ items: [documentItem({ status: 'uploaded', chunk_count: 0 })] }),
+    '/api/v1/knowledge/documents/doc_abc123/content': () => envelope({ text: '未向量化的本地正文' }),
+  })
+  await expect(source.read(['doc_abc123'])).resolves.toBeDefined()
+  expect(calls.every(call => call.method === 'GET')).toBe(true)
+})

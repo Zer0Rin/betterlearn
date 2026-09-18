@@ -1,3 +1,4 @@
+import { ArrowLeft } from 'lucide-react'
 import { useEffect, useLayoutEffect, useState } from 'react'
 import { HistorySidebar } from './components/HistorySidebar.js'
 import { ImportWorkspace } from './components/ImportWorkspace.js'
@@ -74,7 +75,15 @@ export function NobeiWorkspace({
         onRetry={() => setHistoryReload(value => value + 1)}
         onSelect={workspace.openRun} onDelete={deleteAndRefresh} onNew={workspace.reset} />}
       <main className="nobei-client" data-testid="nobei-client-view">
-      <header className="nobei-client__masthead" data-testid="nobei-shared-header">
+      {workspace.screen !== 'import' && <nav className="nobei-client__navigation" aria-label="提取任务导航" data-testid="nobei-workspace-navigation">
+        <button type="button" disabled={workspace.busy} onClick={workspace.reset}>
+          <ArrowLeft size={18} aria-hidden="true" /> 返回导入
+        </button>
+        <span>{workspace.screen === 'processing' && workspace.run && ['created', 'document_ready', 'awaiting_generation', 'generating', 'validating'].includes(workspace.run.status)
+          ? '返回不停止提取，可从提取历史继续查看。'
+          : '任务已保留，可从提取历史重新打开。'}</span>
+      </nav>}
+      <header className="nobei-client__masthead" hidden={standalone && workspace.screen === 'import' && !workspace.currentRunId} data-testid="nobei-shared-header">
         <div className="nobei-client__masthead-intro">
           <p className="nobei-client__brand">Nobei</p>
           <h1>把原文整理成可核对的知识</h1>
@@ -82,7 +91,7 @@ export function NobeiWorkspace({
         <div>
           <p className="nobei-client__source-identity"><span>当前材料</span><strong>{sourceName}</strong></p>
           {activeModel && <p className="nobei-client__active-model"
-            data-testid="nobei-active-model">本次模型：{modelSelectionLabel(activeModel)}</p>}
+            data-testid="nobei-active-model">文本模型：{modelSelectionLabel(activeModel)}</p>}
         </div>
       </header>
       <div className="nobei-client__workspace" data-workspace-screen={workspace.screen}>

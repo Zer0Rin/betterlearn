@@ -29,14 +29,14 @@ export function AppearanceSettings({ frost, onChange, saved, componentOpacity = 
       aria-valuetext={description} aria-describedby="glass-frost-help"
       onChange={event=>onChange(Number(event.currentTarget.value))}/>
     <div className="appearance-slider-labels" aria-hidden="true"><span>通透</span><span>不透明</span></div>
-    <p id="glass-frost-help">调节整个窗口下层背景，包含主内容区。不会改变上层组件的底色浓度。</p>
+    <p id="glass-frost-help">调节整个窗口下层背景的通透感。文字保持实色，低不透明度时增加轻微衬托。</p>
     {onComponentChange && <div className="component-appearance">
       <div className="appearance-slider-heading"><label htmlFor="component-opacity">组件底色</label><output htmlFor="component-opacity">不透明度 {componentOpacity}%</output></div>
       <input id="component-opacity" type="range" min="0" max="100" step="1" value={componentOpacity}
         aria-valuetext={`不透明度 ${componentOpacity}%`} aria-describedby="component-opacity-help"
         onChange={event=>onComponentChange(Number(event.currentTarget.value))}/>
       <div className="appearance-slider-labels" aria-hidden="true"><span>通透</span><span>实色</span></div>
-      <p id="component-opacity-help">调节导航、卡片、表单和输入框的底色。文字、图标及操作按钮保持清晰。</p>
+      <p id="component-opacity-help">调节顶部工具栏、导航、卡片和表单的底色；0% 通透，100% 实色。长文阅读区单独保留浅色底，方便持续阅读。</p>
     </div>}
     <p className="appearance-save-status" role="status">{saved ? '实时生效，自动记住你的选择。' : '已生效，但浏览器未能保存。下次打开可能恢复默认。'}</p>
     <p className="appearance-transparency-note">系统已启用“减少透明效果”，当前使用不透明背景；关闭后会恢复所选质感。</p>

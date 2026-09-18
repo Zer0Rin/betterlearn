@@ -75,7 +75,7 @@ export async function startStandalone(options:StandaloneOptions){
      const docs=await docsResponse.json() as {data?:{items?:Array<{status:string}>}}
      if(docs.data?.items?.some(d=>d.status==='processing'))throw new Error('请等待文档处理完成后再修改设置')
      const p=patch as {embedding?:{baseUrl?:string;model?:string}}
-     if(docs.data?.items?.length&&p.embedding&&((p.embedding.baseUrl!==undefined&&p.embedding.baseUrl!==settings.public().embedding.baseUrl)||(p.embedding.model!==undefined&&p.embedding.model!==settings.public().embedding.model)))throw new Error('知识库已有向量，请先删除文档并重新上传后再切换向量模型')
+     if(docs.data?.items?.some(d=>d.status!=='uploaded')&&p.embedding&&((p.embedding.baseUrl!==undefined&&p.embedding.baseUrl!==settings.public().embedding.baseUrl)||(p.embedding.model!==undefined&&p.embedding.model!==settings.public().embedding.model)))throw new Error('知识库已有向量，请先删除文档并重新上传后再切换向量模型')
      // Persistent jobs outlive HTTP requests. Do not interrupt them for a config change.
      const busy=await quiz.request('/user/active-tasks');if(!busy.ok)throw new Error('无法确认练习状态，设置未修改');if((await busy.json() as {data?:{active:boolean}}).data?.active)throw new Error('练习仍在生成，请完成后再修改设置')
     }

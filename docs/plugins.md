@@ -62,3 +62,9 @@ node scripts/verify-plugins.mjs
 复验已安装包，可传 `--codex /absolute/path/.mcp.json --claude /absolute/path/.mcp.json`。验证脚本会把数据目录覆盖为临时目录，因此要求被测配置未显式包含 `--home`。
 
 官方依据：[Claude Code 插件参考](https://code.claude.com/docs/en/plugins-reference)、[本地插件加载](https://code.claude.com/docs/en/plugins)、[Codex plugin-creator](https://github.com/openai/codex/blob/main/codex-rs/skills/src/assets/samples/plugin-creator/SKILL.md)。
+
+## 2026-09-18 复核修复后的安装更新
+
+已备份旧安装到 `output/handoffs/plugin-backup-20260918-144651/`（Codex 源目录、Claude 已安装目录，包含原 TODO 模板）。通过 plugin-creator cachebuster 和 `codex plugin add betterlearn@personal` 正式重装，当前版本 `0.1.0+codex.20260918064758`，CLI 确认为 installed / enabled。Claude skills-dir 插件同步更新且 manifest 校验通过，根目录同名 TODO 模板已从加载目录移除。
+
+两份实际安装的 MCP 配置已通过 `verify-plugins.mjs --codex … --claude …`：17 工具、共享临时后端、跨客户端请求去重、无模型配置的只读评估及凭证不泄露。已安装技能与仓库共享技能 SHA-256 一致，包含空答案证据排除和目标延迟结算规则。所有验证使用临时 home / fake provider，不操作日常学习数据。Codex 新开任务载入新版本；Claude 可新开会话或 `/reload-plugins`。未验证宿主模型自然语言对话。

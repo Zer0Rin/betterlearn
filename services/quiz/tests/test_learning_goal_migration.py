@@ -25,12 +25,12 @@ async def test_v5_goal_upgrade_backup_and_rollback(database, monkeypatch, failur
     else:
         await db.init_db()
     with sqlite3.connect(database) as conn:
-        assert conn.execute('PRAGMA user_version').fetchone()[0] == (5 if failure else 7)
+        assert conn.execute('PRAGMA user_version').fetchone()[0] == (5 if failure else 8)
         assert conn.execute('SELECT total_xp FROM users').fetchone()[0] == 77
         assert not conn.execute("SELECT 1 FROM sqlite_master WHERE name='goal_partial'").fetchone()
         if not failure:
             assert conn.execute('SELECT COUNT(*) FROM learning_goals').fetchone()[0] == 0
-    backups = list(database.parent.glob('*.pre-v7-*.bak'))
+    backups = list(database.parent.glob('*.pre-v8-*.bak'))
     assert len(backups) == 1
     with sqlite3.connect(backups[0]) as conn:
         assert conn.execute('PRAGMA integrity_check').fetchone()[0] == 'ok'
@@ -39,7 +39,7 @@ async def test_v5_goal_upgrade_backup_and_rollback(database, monkeypatch, failur
     if not failure:
         await db.close_db()
         await db.init_db()
-        assert len(list(database.parent.glob('*.pre-v7-*.bak'))) == 1
+        assert len(list(database.parent.glob('*.pre-v8-*.bak'))) == 1
 
 
 @pytest.mark.asyncio
@@ -73,11 +73,11 @@ async def test_older_versions_upgrade_or_rollback_every_migration(database, tmp_
     else:
         await db.init_db()
     with sqlite3.connect(path) as conn:
-        assert conn.execute('PRAGMA user_version').fetchone()[0] == (version if failure else 7)
+        assert conn.execute('PRAGMA user_version').fetchone()[0] == (version if failure else 8)
         assert conn.execute('SELECT total_xp FROM users').fetchone()[0] == 42
         assert not conn.execute("SELECT 1 FROM sqlite_master WHERE name='goal_partial'").fetchone()
         assert bool(conn.execute("SELECT 1 FROM sqlite_master WHERE name='learning_goals'").fetchone()) is not failure
-    backup = next(tmp_path.glob('historic.sqlite.pre-v7-*.bak'))
+    backup = next(tmp_path.glob('historic.sqlite.pre-v8-*.bak'))
     with sqlite3.connect(backup) as conn:
         assert conn.execute('PRAGMA user_version').fetchone()[0] == version
         assert conn.execute('PRAGMA integrity_check').fetchone()[0] == 'ok'

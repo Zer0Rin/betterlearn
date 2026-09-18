@@ -91,16 +91,19 @@ Score uses0..1, accuracy uses0..100 percent. Three correct distinct contents can
 score1 but do not satisfy the default five-content minimum. A larger count
 minimum does not expand the last-five scoring window. criteria_met can fall
 before the deadline after new wrong first answers; it is not a permanent badge
-or record of first attainment. After the deadline, late answers do not change
-the eligible result. The ordinary all-history assessment remains unchanged.
+or record of first attainment. Results are dynamically recomputed using recorded submitted_at, not frozen at
+the first post-deadline read. A timed-out exam records its exam deadline as
+submitted_at; later finalization can therefore update an expired goal when the
+exam deadline is within the goal cutoff. Submissions recorded after the cutoff
+remain excluded. The ordinary all-history assessment remains unchanged.
 Archive state is separate from progress. The local recorded server clock is the
 time authority; this is not tamper-resistant remote exam timing.
 
 ## Persistence and validation
 
 Quiz schema6 adds learning_goals with immutable canonical request, digest, source,
-policy and criteria plus archival revision. Core schema2 unchanged. v1..v5 startup
-uses existing SQLite backup before upgrade, `.pre-v6-<uuid>.bak` with0600 mode;
+policy and criteria plus archival revision. Core schema2 unchanged. Current Quiz schema7 upgrades v1..v6 at startup
+using existing SQLite backup before upgrade, `.pre-v7-<uuid>.bak` with0600 mode;
 failed upgrades roll back version and all migrations. Existing scores, XP, reports
 and source tasks are not recalculated. The entire quiz-data backup/restore includes
 goals and creation deduplication. No separate storage or background expiry task.
@@ -111,3 +114,8 @@ HTTP/source generation/goal/archive/Core deletion/restart/backup-restore in
 test/standalone-mcp.test.ts. Fixtures alone use fake provider data; goal operations
 add zero provider calls. Query cost grows with the matching historical answers;
 list response limits do not truncate detail evidence.
+
+Learning evidence excludes empty selected-answer arrays (both omitted exam answers
+and explicitly cleared answers), including existing historical projections.
+Exam grades and question-bank wrong-answer history still include unanswered items
+as incorrect. This read filter requires no migration or score rewrite.

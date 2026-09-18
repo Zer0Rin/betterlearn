@@ -42,7 +42,7 @@ corepack pnpm exec electron-builder --config electron-builder.yml --dir
 
 输出位于 `dist/installers/`。macOS 默认制作 DMG，Linux 配置为 AppImage；应在目标平台验证。Python 模块、数据库 schema、练习服务及页面放在应用的 `resources/standalone` 实际文件树中，不能放在 Python 无法读取的 ASAR 内。
 
-2026-09-18 的最新本机验收镜像位于 `dist/installers/verified-2026-09-18/`，包含 SHA-256 和镜像内应用一致性校验记录；根目录旧 DMG 为历史产物。详见 [验收记录](desktop-verification.md)。
+每次打包的安装镜像输出到 `dist/installers/`。2026-09-18 的手动向量化修复已对实际打包应用完成验证，记录见 [手动向量化验收](handoffs/2026-09-18-manual-vectorization.md)；较早镜像及 SHA-256 记录见 [桌面验收记录](desktop-verification.md)。
 
 没有配置发布签名、公证或自动更新；本地构建产物不能视为已签名的公众发行版。不要把开发机的虚拟环境或用户数据复制进安装包。
 

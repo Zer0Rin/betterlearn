@@ -42,6 +42,6 @@ rolled back. A failed task stays failed under replay; an explicit new request
 is required for another attempt. Restart marks pending/running failed and never
 resumes generation automatically. Error messages do not persist provider secrets.
 
-Source-generation storage was introduced in Quiz schema5. Current schema6 upgrades v1-v5 with .pre-v6-*.bak before migration; see learning-goals.md. Existing data
+Source-generation storage was introduced in Quiz schema5. Current schema7 upgrades v1-v6 with .pre-v7-*.bak before migration; see exams.md. Existing data
 and XP untouched. No backfill of task/source associations. No Core schema
 change. MCP exposes this flow through betterlearn_generate_source_quiz with ID-only source selection, images disabled, and its existing durable request journal (see mcp-learning.md). Frontend integration is available through the 知识点出题 page: explicit generation, durable original request, bounded task polling and saved quiz entry.
