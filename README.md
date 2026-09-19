@@ -11,9 +11,13 @@ BetterLearn 是本机运行、单人使用的学习工作台：从资料中提�
 
 ## 工程重点
 
+### 全文提取与检索分工
+
+知识提取读取连续正文，按输入预算规划分组，通过重叠上下文与边界补充处理长文，不以相关性召回筛选提取材料。知识库文档出题使用 Chroma 检索相关片段；课程知识点出题直接使用冻结的知识点与证据。全文输入覆盖不代表模型输出完整，候选仍需原文引用校验与人工审核。具体处理流程见 [架构说明](docs/architecture.md#3-资料提取审核与学习书)。
+
 ### MCP 服务与客户端集成
 
-`dist/standalone/mcp.mjs` 通过 stdio 提供 MCP 服务，连接已经运行的 BetterLearn 本机服务，复用同一套数据、模型配置和任务状态，不另起业务后端。提供 Codex / Claude Code 插件包装，支持读取学习资料与历史，以及显式发起生成任务；生成请求通过稳定的请求标识去重。插件验证使用真实 MCP SDK，检查跨客户端去重、共享历史和密钥不外泄。
+`dist/standalone/mcp.mjs` 通过 stdio 提供 MCP 服务，连接已经运行的 BetterLearn 本机服务，复用同一套数据、模型配置和任务状态，不另起业务后端。提供 Codex / Claude Code 插件包装，支持读取学习资料与历史，以及显式发起生成任务；生成请求通过稳定的请求标识去重：同一标识与相同参数在已记录任务时返回原任务，参数冲突则拒绝；提交结果不确定时保留请求记录并阻断自动重发，不把通信失败当作安全重试的依据。插件验证使用真实 MCP SDK，检查跨客户端去重、共享历史，以及工具结果不包含测试用模型密钥。
 
 ### 模型调用成本控制
 
@@ -147,7 +151,7 @@ MCP 连接已运行的本机服务，不另起一套学习后端。生成操作�
 
 ## 数据与边界
 
-- 本地单用户工作台：Core SQLite 保存提取、审核、学习书与课程；Quiz SQLite 保存练习、题库、目标与考试；Chroma 保存向量索引。
+- 本地单用户工作台：Core SQLite 保存提取、审核、知识点与课程状态；Host 通过 `library.json` 保存学习书目录与版本；Quiz SQLite 保存练习、题库、目标与考试；Chroma 保存向量索引。
 - 模型密钥保存在本机后端，页面只展示配置状态。接口只面向本机，不应暴露到公网。
 - Web 与桌面共用数据目录，但不能同时占用同一个目录；浏览器草稿及外观偏好不保证跨宿主同步。
 - PDF 仅支持文字层，当前不含 OCR。未审核的模型输出不会直接变成已确认知识。
@@ -204,4 +208,4 @@ corepack pnpm test:plugins
 
 ## 许可证
 
-[MIT License](LICENSE)。迁入的鱼皮项目来源及许可证见 [PROVENANCE](services/quiz/PROVENANCE.md) 与 [许可证](services/quiz/LICENSE)。
+BetterLearn 根项目采用 [MIT License](LICENSE)。练习服务及相关前端派生自 [liyupi/yu-ai-learn](https://github.com/liyupi/yu-ai-learn)，保留其 [MIT 许可证](services/quiz/LICENSE)；部分判分、题库与证据评分实现改编自 DeepTutor，对应 Apache-2.0 许可证及来源记录保存在 [third_party/DeepTutor](services/quiz/third_party/DeepTutor/)。迁入版本与改造范围统一见 [PROVENANCE](services/quiz/PROVENANCE.md)。
